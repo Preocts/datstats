@@ -12,7 +12,7 @@ from daystats.daystats import BASE_URL
 from daystats.daystats import TOKEN_KEY
 
 CONTRIBUTION_FIXTURE = pathlib.Path("tests/fixture_contribution.json").read_text()
-REPOSITORY_FIXTURE = pathlib.Path("tests/fixture_repository.json").read_text()
+REPOSITORY_FIXTURE = pathlib.Path("tests/fixture_repository_paged.json").read_text()
 
 
 def test_HTTPClient_headers() -> None:
@@ -176,7 +176,7 @@ def test_fetch_pull_requets_successful_parsing() -> None:
     start = datetime.datetime(year=2023, month=8, day=31, hour=19, minute=0, second=0)
     end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)
 
-    with patch.object(client, "post", return_value=mock_resp):
+    with patch.object(client, "post", side_effect=mock_resp):
         result = daystats.fetch_pull_requests(
             client=client,
             author="preocts",
