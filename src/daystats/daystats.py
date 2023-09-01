@@ -147,7 +147,7 @@ def fetch_contributions(
 
     resp_json = client.post(query)
     if "data" not in resp_json:
-        # print(json.dumps(resp_json, indent=4))
+        print(json.dumps(resp_json, indent=4))
         return None
 
     pr_repos = set()
@@ -186,7 +186,7 @@ def fetch_pull_requests(
     reponame: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> list[PullRequest]:
+) -> list[PullRequest] | None:
     """
     Fetch list of pull request details from GitHub GraphQL API.
 
@@ -210,7 +210,7 @@ def fetch_pull_requests(
         resp_json = client.post(query)
         if "data" not in resp_json:
             print(json.dumps(resp_json, indent=4))
-            raise ValueError("Unexpected response from API.")
+            return None
 
         rjson = resp_json["data"]["repository"]["pullRequests"]
 
@@ -356,7 +356,7 @@ def runner() -> int:
             start_dt=start_dt - TIMEZONE_OFFSET,
             end_dt=end_dt - TIMEZONE_OFFSET,
         )
-        for pr in pull_requests:
+        for pr in pull_requests or []:
             print(pr)
 
     return 0

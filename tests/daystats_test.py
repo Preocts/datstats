@@ -12,6 +12,7 @@ from daystats.daystats import BASE_URL
 from daystats.daystats import TOKEN_KEY
 
 CONTRIBUTION_FIXTURE = pathlib.Path("tests/fixture_contribution.json").read_text()
+REPOSITORY_FIXTURE = pathlib.Path("tests/fixture_repository.json").read_text()
 
 
 def test_HTTPClient_headers() -> None:
@@ -166,5 +167,43 @@ def test_fetch_contributions_error_handled() -> None:
     assert result is None
 
 
-# times for repository tests
-# 2023-08-31 19:00:00 2023-09-01 18:59:59
+def test_fetch_pull_requets_successful_parsing() -> None:
+    """Do not test the call, only parsing logic of expected results"""
+    client = daystats.HTTPClient("mock", "example.com")
+    mock_resp = json.loads(REPOSITORY_FIXTURE)
+    # times for repository fixture
+    # 2023-08-31 19:00:00 2023-09-01 18:59:59
+    start = datetime.datetime(year=2023, month=8, day=31, hour=19, minute=0, second=0)
+    end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)
+
+    with patch.object(client, "post", return_value=mock_resp):
+        result = daystats.fetch_pull_requests(
+            client=client,
+            author="preocts",
+            repoowner="preocts",
+            reponame="daystats",
+            start_dt=start,
+            end_dt=end,
+        )
+
+    assert result
+
+
+def test_fetch_pull_requets_error_handle() -> None:
+    """Do not test the call, only parsing logic of expected results"""
+    client = daystats.HTTPClient("mock", "example.com")
+    mock_resp = {"error": "json machine broken"}
+    start = datetime.datetime(year=2023, month=8, day=31, hour=19, minute=0, second=0)
+    end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)
+
+    with patch.object(client, "post", return_value=mock_resp):
+        result = daystats.fetch_pull_requests(
+            client=client,
+            author="preocts",
+            repoowner="preocts",
+            reponame="daystats",
+            start_dt=start,
+            end_dt=end,
+        )
+
+    assert result is None
