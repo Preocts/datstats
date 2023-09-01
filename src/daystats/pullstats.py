@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import datetime
 import json
+import os
+import time
 from typing import Any
 
 import httpx
@@ -12,9 +15,10 @@ BASE_URL = "https://api.github.com/graphql"
 TOKEN = secretbox.SecretBox(auto_load=True).get("GITHUB_PAT")
 HEADERS = {"Authorization": f"bearer {TOKEN}"}
 NOW_ISO8601 = datetime.datetime.now().strftime("%Y-%m-%d") + "T00:00:00.000Z"
+TOKEN_KEY = "DAILYSTATS_PAT"
 
 
-def create_contrib_query(loginname: str, from_: str, to_: str) -> dict[str, Any]:
+def _create_contrib_query(loginname: str, from_: str, to_: str) -> dict[str, Any]:
     """Return the query."""
     query = """
 query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
@@ -43,7 +47,7 @@ query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
     return {"query": query, "variables": variables}
 
 
-def create_diff_query(
+def _create_diff_query(
     repoowner: str,
     reponame: str,
     cursor: str | None = None,
@@ -112,7 +116,7 @@ def fetch_contributions(
     # incorrectly set timezone.
     from_ = start_dt.isoformat() + "Z"
     to_ = end_dt.isoformat() + "Z"
-    query = create_contrib_query(loginname, from_, to_)
+    query = _create_contrib_query(loginname, from_, to_)
 
     resp = httpx.post(BASE_URL, json=query, headers=HEADERS)
     if not resp.is_success or "data" not in resp.json():
@@ -174,7 +178,7 @@ def fetch_pull_requests(
     prs = []
 
     while more:
-        query = create_diff_query(repoowner, reponame, cursor)
+        query = _create_diff_query(repoowner, reponame, cursor)
         resp = httpx.post(BASE_URL, json=query, headers=HEADERS)
         if not resp.is_success or "data" not in resp.json():
             print(json.dumps(resp.json(), indent=4))
@@ -213,16 +217,76 @@ def fetch_pull_requests(
     return prs
 
 
+@dataclasses.dataclass(frozen=True)
+class CLIArgs:
+    loginname: str
+    year: int | None
+    month: int | None
+    day: int | None
+    url: str = BASE_URL
+    token: str | None = None
+
+
+def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        prog="daystats",
+        description="Pull daily stats from GitHub.",
+    )
+    parser.add_argument(
+        "loginname",
+        type=str,
+        help="Login name to GitHub (author name).",
+    )
+    parser.add_argument(
+        "--year",
+        type=int,
+        help="Year to query. (default: today)",
+    )
+    parser.add_argument(
+        "--month",
+        type=int,
+        help="Month of the year to query. (default: today)",
+    )
+    parser.add_argument(
+        "--day",
+        type=int,
+        help="Day of the month to query. (default: today)",
+    )
+    parser.add_argument(
+        "--url",
+        type=str,
+        help=f"Override default GitHub GraphQL API url. (default: {BASE_URL})",
+        default=BASE_URL,
+    )
+    parser.add_argument(
+        "--token",
+        type=str,
+        help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
+        default=os.getenv(TOKEN_KEY),
+    )
+
+    args = parser.parse_args(cli_args)
+    return CLIArgs(
+        loginname=args.loginname,
+        year=args.year,
+        month=args.month,
+        day=args.day,
+        url=args.url,
+        token=args.token,
+    )
+
+
 def runner() -> int:
     """Run the program."""
-    # TODO: These will need to be in the config
-    timezone_offset = -4
+    # This couldn't possibily be a bad way to get the UTC offset :3c
+    timezone_offset = time.timezone // 60 // 60
     loginname = "Preocts"
 
     # TODO: GitHub operates in UTC so some timezone joy will be needed
     now = datetime.datetime.now()
     # REMOVE THIS
-    now = now.replace(month=8, day=27)
+    now = now.replace(month=8, day=31)
     offset = datetime.timedelta(hours=timezone_offset)
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -235,8 +299,8 @@ def runner() -> int:
             author=loginname,
             repoowner=repo.owner,
             reponame=repo.name,
-            start_dt=start_dt - offset,
-            end_dt=end_dt - offset,
+            start_dt=start_dt + offset,
+            end_dt=end_dt + offset,
         )
         for pr in pull_requests:
             print(pr)
