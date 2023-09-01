@@ -96,6 +96,7 @@ def test_parse_args_flags() -> None:
         *("--year", "1998"),
         *("--url", "https://github.com/broken"),
         *("--token", "mockier_token"),
+        "--debug",
     ]
 
     with patch.dict(os.environ, env):

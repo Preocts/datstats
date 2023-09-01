@@ -5,6 +5,7 @@ import dataclasses
 import datetime
 import http.client
 import json
+import logging
 import os
 import time
 from typing import Any
@@ -15,6 +16,8 @@ TIMEZONE_OFFSET = datetime.timedelta(hours=time.timezone // 60 // 60)
 BASE_URL = "https://api.github.com/graphql"
 TOKEN_KEY = "DAILYSTATS_PAT"
 HTTPS_TIMEOUT = 10  # seconds
+
+logger = logging.getLogger(__name__)
 
 
 class HTTPClient:
@@ -39,6 +42,7 @@ class HTTPClient:
         try:
             resp_json = json.loads(resp.read().decode())
         except json.JSONDecodeError as err:
+            logger.error("HTTPS error code: %d", resp.status)
             return {"error": str(err)}
 
         return resp_json
@@ -147,7 +151,7 @@ def fetch_contributions(
 
     resp_json = client.post(query)
     if "data" not in resp_json:
-        print(json.dumps(resp_json, indent=4))
+        logger.error("Fetch contributions failed: %s", json.dumps(resp_json))
         return Contributions(0, 0, 0, 0, set())
 
     pr_repos = set()
@@ -160,7 +164,8 @@ def fetch_contributions(
         )
         pr_repos.add(repo)
 
-    # print(json.dumps(resp_json, indent=4))
+    logger.debug("contribution result: %s ", json.dumps(resp_json, indent=4))
+
     return Contributions(
         commits=contribs["totalCommitContributions"],
         issues=contribs["totalIssueContributions"],
@@ -209,7 +214,7 @@ def fetch_pull_requests(
         query = _create_diff_query(repoowner, reponame, cursor)
         resp_json = client.post(query)
         if "data" not in resp_json:
-            print(json.dumps(resp_json, indent=4))
+            logger.error("Fetch pull request failed: %s", json.dumps(resp_json))
             return []
 
         rjson = resp_json["data"]["repository"]["pullRequests"]
@@ -217,7 +222,7 @@ def fetch_pull_requests(
         cursor = rjson["pageInfo"]["endCursor"]
         more = rjson["pageInfo"]["hasNextPage"]
 
-        # print(json.dumps(resp_json, indent=4))
+        logger.debug("Pull request result: %s", json.dumps(resp_json, indent=4))
 
         for node in rjson["nodes"]:
             created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
@@ -293,8 +298,20 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
         help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
         default=os.getenv(TOKEN_KEY),
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Turn debug logging output on. Use with care, will expose token!",
+    )
 
     args = parser.parse_args(cli_args)
+
+    if args.debug:
+        logging.basicConfig(level="DEBUG")
+
+    logger.debug("CLI Input Override: %s", cli_args)
+    logger.debug("CLI Input: %s:", args)
+
     return CLIArgs(
         loginname=args.loginname,
         year=args.year,
@@ -346,6 +363,9 @@ def get_stats(
     Uses today as the default date pulled.
     """
     start_dt, end_dt = _build_bookend_times(year, month, day)
+    logger.debug("Start time: %s", start_dt)
+    logger.debug("End time: %s", end_dt)
+    logger.debug("UTC Offset: %s", TIMEZONE_OFFSET)
 
     contribs = fetch_contributions(client, loginname, start_dt, end_dt)
     pull_requests = []
@@ -375,6 +395,11 @@ def runner(cli_args: list[str] | None = None) -> int:
         month=args.month,
         day=args.day,
     )
+
+    logger.debug("Contributions: %s", contribs)
+    logger.debug("Pull Requests:\n%s", "\n".join([str(pr) for pr in pull_requests]))
+
+    # TODO: Build output emitters
     print(contribs)
     print("\n".join([str(pr) for pr in pull_requests]))
 
