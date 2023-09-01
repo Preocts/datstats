@@ -132,7 +132,7 @@ def fetch_contributions(
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> Contributions:
+) -> Contributions | None:
     """
     Fetch contribution information from GitHub GraphQL API.
 
@@ -147,8 +147,8 @@ def fetch_contributions(
 
     resp_json = client.post(query)
     if "data" not in resp_json:
-        print(json.dumps(resp_json, indent=4))
-        raise ValueError("Unexpected response from API.")
+        # print(json.dumps(resp_json, indent=4))
+        return None
 
     pr_repos = set()
     contribs = resp_json["data"]["user"]["contributionsCollection"]
@@ -160,7 +160,7 @@ def fetch_contributions(
         )
         pr_repos.add(repo)
 
-    # print(json.dumps(resp.json(), indent=4))
+    # print(json.dumps(resp_json, indent=4))
     return Contributions(
         commits=contribs["totalCommitContributions"],
         issues=contribs["totalIssueContributions"],
@@ -198,8 +198,8 @@ def fetch_pull_requests(
         author: Results filtered to only include Author of pull request
         repoowner: Owner of repo (or org)
         reponame: Name of repo
-        start_dt: Earliest created at time for pull request
-        end_dt: Latest created at time for pull request
+        start_dt: Earliest created at time for pull request in UTC
+        end_dt: Latest created at time for pull request in UTC
     """
     cursor = None
     more = True
@@ -217,7 +217,7 @@ def fetch_pull_requests(
         cursor = rjson["pageInfo"]["endCursor"]
         more = rjson["pageInfo"]["hasNextPage"]
 
-        print(json.dumps(resp_json, indent=4))
+        # print(json.dumps(resp_json, indent=4))
 
         for node in rjson["nodes"]:
             created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
@@ -341,6 +341,10 @@ def runner() -> int:
     start_dt, end_dt = _build_bookend_times(args.year, args.month, args.day)
 
     contribs = fetch_contributions(client, args.loginname, start_dt, end_dt)
+    if not contribs:
+        print("Something went wrong")
+        return 1
+
     print(contribs)
 
     for repo in contribs.pr_repos:

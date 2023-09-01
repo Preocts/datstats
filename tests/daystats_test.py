@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
+import pathlib
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from daystats import daystats
 from daystats.daystats import BASE_URL
 from daystats.daystats import TOKEN_KEY
+
+CONTRIBUTION_FIXTURE = pathlib.Path("tests/fixture_contribution.json").read_text()
 
 
 def test_HTTPClient_headers() -> None:
@@ -128,3 +132,39 @@ def test_build_bookend_from_cli_time() -> None:
 
     assert start.isoformat() == "1999-12-31T00:00:00"
     assert end.isoformat() == "1999-12-31T23:59:59"
+
+
+def test_fetch_contributions_successful_parsing() -> None:
+    """Do not test the call, only parsing logic of expected results"""
+    client = daystats.HTTPClient("mock", "example.com")
+    mock_resp = json.loads(CONTRIBUTION_FIXTURE)
+    start = datetime.datetime(year=1998, month=12, day=31, hour=0, minute=0, second=0)
+    end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
+
+    with patch.object(client, "post", return_value=mock_resp):
+        result = daystats.fetch_contributions(client, "mockname", start, end)
+
+    assert result
+    assert result.commits == 5
+    assert result.issues == 1
+    assert result.reviews == 0
+    assert result.pullrequests == 2
+    assert len(result.pr_repos) == 1
+    assert list(result.pr_repos)[0].name == "daystats"
+    assert list(result.pr_repos)[0].owner == "Preocts"
+
+
+def test_fetch_contributions_error_handled() -> None:
+    client = daystats.HTTPClient("mock", "example.com")
+    mock_resp = {"error": "json machine broken"}
+    start = datetime.datetime(year=1998, month=12, day=31, hour=0, minute=0, second=0)
+    end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
+
+    with patch.object(client, "post", return_value=mock_resp):
+        result = daystats.fetch_contributions(client, "mockname", start, end)
+
+    assert result is None
+
+
+# times for repository tests
+# 2023-08-31 19:00:00 2023-09-01 18:59:59
