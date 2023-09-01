@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime
+import http.client
 import json
 import os
 import time
@@ -15,10 +16,39 @@ import secretbox
 TIMEZONE_OFFSET = datetime.timedelta(hours=time.timezone // 60 // 60)
 
 BASE_URL = "https://api.github.com/graphql"
-TOKEN = secretbox.SecretBox(auto_load=True).get("GITHUB_PAT")
+TOKEN_KEY = "DAILYSTATS_PAT"
+HTTPS_TIMEOUT = 10  # seconds
+
+TOKEN = secretbox.SecretBox(auto_load=True).get(TOKEN_KEY)
 HEADERS = {"Authorization": f"bearer {TOKEN}"}
 NOW_ISO8601 = datetime.datetime.now().strftime("%Y-%m-%d") + "T00:00:00.000Z"
-TOKEN_KEY = "DAILYSTATS_PAT"
+
+
+class HTTPClient:
+    def __init__(self, token: str | None, url: str = BASE_URL) -> None:
+        """Define an HTTPClient with token and target GitHub GraphQL API url."""
+        self._token = token or ""
+        url = url.lower().replace("https://", "").replace("http://", "")
+        url_split = url.split("/", 1)
+        self._host = url_split[0]
+        self._path = url_split[1] if len(url_split) > 1 else ""
+
+    @property
+    def _headers(self) -> dict[str, str]:
+        return {"User-Agent": "egg-daystats", "Authorization": f"bearer {self._token}"}
+
+    def post(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Post JSON serializable data to GitHub GraphQL API, return reponse."""
+        connection = http.client.HTTPSConnection(self._host, timeout=HTTPS_TIMEOUT)
+        connection.request("POST", f"/{self._path}", json.dumps(data), self._headers)
+        resp = connection.getresponse()
+
+        try:
+            resp_json = json.loads(resp.read().decode())
+        except json.JSONDecodeError as err:
+            return {"error": str(err)}
+
+        return resp_json
 
 
 def _create_contrib_query(loginname: str, from_: str, to_: str) -> dict[str, Any]:
