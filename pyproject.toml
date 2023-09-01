@@ -43,7 +43,7 @@ homepage = "https://github.com/Preocts/daystats"
 
 # CLI scripts if needed
 [project.scripts]
-pull-stats = "daystats.pullstats:runner"
+pull-stats = "daystats.daystats:runner"
 
 # [tool.setuptools.packages.find]
 # where = ["src"]  # ["."] by default
