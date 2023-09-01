@@ -145,7 +145,6 @@ def test_fetch_contributions_successful_parsing() -> None:
     with patch.object(client, "post", return_value=mock_resp):
         result = daystats.fetch_contributions(client, "mockname", start, end)
 
-    assert result
     assert result.commits == 5
     assert result.issues == 1
     assert result.reviews == 0
@@ -164,7 +163,11 @@ def test_fetch_contributions_error_handled() -> None:
     with patch.object(client, "post", return_value=mock_resp):
         result = daystats.fetch_contributions(client, "mockname", start, end)
 
-    assert result is None
+    assert result.commits == 0
+    assert result.issues == 0
+    assert result.reviews == 0
+    assert result.pullrequests == 0
+    assert result.pr_repos == set()
 
 
 def test_fetch_pull_requets_successful_parsing() -> None:
@@ -186,7 +189,12 @@ def test_fetch_pull_requets_successful_parsing() -> None:
             end_dt=end,
         )
 
-    assert result
+    assert len(result) == 3
+    assert result[0].additions == 47
+    assert result[0].deletions == 286
+    assert result[0].files == 10
+    assert result[0].created_at == "2023-09-01T04:51:04Z"
+    assert result[0].url == "https://github.com/Preocts/daystats/pull/5"
 
 
 def test_fetch_pull_requets_error_handle() -> None:
@@ -206,4 +214,4 @@ def test_fetch_pull_requets_error_handle() -> None:
             end_dt=end,
         )
 
-    assert result is None
+    assert result == []

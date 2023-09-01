@@ -132,7 +132,7 @@ def fetch_contributions(
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> Contributions | None:
+) -> Contributions:
     """
     Fetch contribution information from GitHub GraphQL API.
 
@@ -148,7 +148,7 @@ def fetch_contributions(
     resp_json = client.post(query)
     if "data" not in resp_json:
         print(json.dumps(resp_json, indent=4))
-        return None
+        return Contributions(0, 0, 0, 0, set())
 
     pr_repos = set()
     contribs = resp_json["data"]["user"]["contributionsCollection"]
@@ -186,7 +186,7 @@ def fetch_pull_requests(
     reponame: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> list[PullRequest] | None:
+) -> list[PullRequest]:
     """
     Fetch list of pull request details from GitHub GraphQL API.
 
@@ -210,7 +210,7 @@ def fetch_pull_requests(
         resp_json = client.post(query)
         if "data" not in resp_json:
             print(json.dumps(resp_json, indent=4))
-            return None
+            return []
 
         rjson = resp_json["data"]["repository"]["pullRequests"]
 
