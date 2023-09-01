@@ -109,27 +109,6 @@ deactivate
 
 ---
 
-## Updating dependencies
-
-New dependencys can be added to the `requirements-*.in` file. It is recommended
-to only use pins when specific versions or upgrades beyond a certain version are
-to be avoided. Otherwise, allow `pip-compile` to manage the pins in the
-generated `requirements-*.txt` files.
-
-Once updated following the steps below, the package can be installed if needed.
-
-To update the generated files with a dependency:
-
-```console
-pip-compile --no-emit-index-url requirements/requirements.in
-pip-compile --no-emit-index-url requirements/requirements-dev.in
-pip-compile --no-emit-index-url requirements/requirements-test.in
-```
-
-To attempt to upgrade all generated dependencies add the `--upgrade` flag.
-
----
-
 ## [pre-commit](https://pre-commit.com)
 
 > A framework for managing and maintaining multi-language pre-commit hooks.

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "daystats"
 version = "0.1.0"
 requires-python = ">=3.8"
-description = "Module Description"
+description = "Pull GitHub contribution stats for a given day."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ email = "preocts@preocts.com", name = "Preocts" }]
@@ -18,38 +18,26 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-# Dynamic dependencies are loaded from requirements*.txt files
-dynamic = ["dependencies", "optional-dependencies"]
+dependencies = []
 
-[tool.setuptools.dynamic.dependencies]
-file = ["requirements/requirements.txt"]
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "black",
+    "mypy",
+    "flake8",
+    "flake8-builtins",
+    "flake8-pep585",
 
-[tool.setuptools.dynamic.optional-dependencies]
-dev = { file = ["requirements/requirements-dev.txt"] }
-test = { file = ["requirements/requirements-test.txt"] }
-
-# Alertative way to specify dependencies
-# dependencies = []
-
-# [project.optional-dependencies]
-# dev = []
-# test = []
+]
+test = ["pytest", "pytest-randomly", "coverage", "nox"]
 
 [project.urls]
 homepage = "https://github.com/Preocts/daystats"
-# documentation = ""
-# repository = ""
-# changelog = ""
 
 # CLI scripts if needed
 [project.scripts]
 pull-stats = "daystats.daystats:runner"
-
-# [tool.setuptools.packages.find]
-# where = ["src"]  # ["."] by default
-# include = ["*"]  # ["*"] by default
-# exclude = ["tests"]  # empty by default
-# namespaces = true  # true by default
 
 [tool.setuptools.package-data]
 "daystats" = ["py.typed"]

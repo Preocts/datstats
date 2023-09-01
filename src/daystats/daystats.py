@@ -9,19 +9,12 @@ import os
 import time
 from typing import Any
 
-import httpx
-import secretbox
-
 # This couldn't possibily be a bad way to get the UTC offset :3c
 TIMEZONE_OFFSET = datetime.timedelta(hours=time.timezone // 60 // 60)
 
 BASE_URL = "https://api.github.com/graphql"
 TOKEN_KEY = "DAILYSTATS_PAT"
 HTTPS_TIMEOUT = 10  # seconds
-
-TOKEN = secretbox.SecretBox(auto_load=True).get(TOKEN_KEY, "")
-HEADERS = {"Authorization": f"bearer {TOKEN}"}
-NOW_ISO8601 = datetime.datetime.now().strftime("%Y-%m-%d") + "T00:00:00.000Z"
 
 
 class HTTPClient:
@@ -135,6 +128,7 @@ class Contributions:
 
 
 def fetch_contributions(
+    client: HTTPClient,
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
@@ -151,14 +145,13 @@ def fetch_contributions(
     to_ = end_dt.isoformat() + "Z"
     query = _create_contrib_query(loginname, from_, to_)
 
-    resp = httpx.post(BASE_URL, json=query, headers=HEADERS)
-    if not resp.is_success or "data" not in resp.json():
-        print(json.dumps(resp.json(), indent=4))
+    resp_json = client.post(query)
+    if "data" not in resp_json:
+        print(json.dumps(resp_json, indent=4))
         raise ValueError("Unexpected response from API.")
 
     pr_repos = set()
-    rjson = resp.json()
-    contribs = rjson["data"]["user"]["contributionsCollection"]
+    contribs = resp_json["data"]["user"]["contributionsCollection"]
 
     for pr in contribs["pullRequestContributionsByRepository"]:
         repo = Repo(
@@ -187,6 +180,7 @@ class PullRequest:
 
 
 def fetch_pull_requests(
+    client: HTTPClient,
     author: str,
     repoowner: str,
     reponame: str,
@@ -200,6 +194,7 @@ def fetch_pull_requests(
     in order to correctly filter the activity.
 
     Args:
+        client: HTTPClient object
         author: Results filtered to only include Author of pull request
         repoowner: Owner of repo (or org)
         reponame: Name of repo
@@ -212,23 +207,20 @@ def fetch_pull_requests(
 
     while more:
         query = _create_diff_query(repoowner, reponame, cursor)
-        resp = httpx.post(BASE_URL, json=query, headers=HEADERS)
-        if not resp.is_success or "data" not in resp.json():
-            print(json.dumps(resp.json(), indent=4))
+        resp_json = client.post(query)
+        if "data" not in resp_json:
+            print(json.dumps(resp_json, indent=4))
             raise ValueError("Unexpected response from API.")
 
-        rjson = resp.json()["data"]["repository"]["pullRequests"]
+        rjson = resp_json["data"]["repository"]["pullRequests"]
 
         cursor = rjson["pageInfo"]["endCursor"]
         more = rjson["pageInfo"]["hasNextPage"]
 
-        # print(json.dumps(resp.json(), indent=4))
+        # print(json.dumps(resp_json, indent=4))
 
         for node in rjson["nodes"]:
             created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
-
-            if node["author"]["login"] != author:
-                continue
 
             if created_at > end_dt:
                 continue
@@ -236,6 +228,9 @@ def fetch_pull_requests(
             if created_at < start_dt:
                 more = False
                 break
+
+            if node["author"]["login"].lower() != author.lower():
+                continue
 
             prs.append(
                 PullRequest(
@@ -331,22 +326,26 @@ def _build_bookend_times(args: CLIArgs) -> tuple[datetime.datetime, datetime.dat
 
 def runner() -> int:
     """Run the program."""
-    # args = parse_args()
-    # client = HTTPClient(args.token, args.url)
+    args = parse_args()
+    client = HTTPClient(args.token, args.url)
 
-    # contribs = fetch_contributions(loginname, start_dt, end_dt)
-    # print(contribs)
+    # TODO: Do not send entire model to function
+    start_dt, end_dt = _build_bookend_times(args)
 
-    # for repo in contribs.pr_repos:
-    #     pull_requests = fetch_pull_requests(
-    #         author=loginname,
-    #         repoowner=repo.owner,
-    #         reponame=repo.name,
-    #         start_dt=start_dt + offset,
-    #         end_dt=end_dt + offset,
-    #     )
-    #     for pr in pull_requests:
-    #         print(pr)
+    contribs = fetch_contributions(client, args.loginname, start_dt, end_dt)
+    print(contribs)
+
+    for repo in contribs.pr_repos:
+        pull_requests = fetch_pull_requests(
+            client=client,
+            author=args.loginname,
+            repoowner=repo.owner,
+            reponame=repo.name,
+            start_dt=start_dt + TIMEZONE_OFFSET,
+            end_dt=end_dt + TIMEZONE_OFFSET,
+        )
+        for pr in pull_requests:
+            print(pr)
 
     return 0
 
