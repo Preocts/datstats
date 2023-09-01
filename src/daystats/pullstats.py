@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-import datetime
 import dataclasses
+import datetime
 import json
 from typing import Any
 
 import httpx
+import secretbox
 
 BASE_URL = "https://api.github.com/graphql"
-TOKEN = ""
+TOKEN = secretbox.SecretBox(auto_load=True).get("GITHUB_PAT")
 HEADERS = {"Authorization": f"bearer {TOKEN}"}
 NOW_ISO8601 = datetime.datetime.now().strftime("%Y-%m-%d") + "T00:00:00.000Z"
 
 
-def create_contrib_query(loginname: str, today: str) -> dict[str, Any]:
+def create_contrib_query(loginname: str, from_: str, to_: str) -> dict[str, Any]:
     """Return the query."""
     query = """
-query($loginname: String!, $today:DateTime) {
+query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
     user(login:$loginname) {
-        contributionsCollection(from:$today) {
+        contributionsCollection(from:$from_time, to:$to_time) {
             totalCommitContributions
             totalIssueContributions
             totalPullRequestContributions
@@ -36,7 +37,8 @@ query($loginname: String!, $today:DateTime) {
 }"""
     variables = {
         "loginname": loginname,
-        "today": today,
+        "from_time": from_,
+        "to_time": to_,
     }
     return {"query": query, "variables": variables}
 
@@ -95,9 +97,22 @@ class Contributions:
     pr_repos: set[Repo]
 
 
-def fetch_contributions(loginname: str, today: str) -> Contributions:
-    """Fetch contribution information from GitHub GraphQL API."""
-    query = create_contrib_query(loginname, today)
+def fetch_contributions(
+    loginname: str,
+    start_dt: datetime.datetime,
+    end_dt: datetime.datetime,
+) -> Contributions:
+    """
+    Fetch contribution information from GitHub GraphQL API.
+
+    start_dt and end_dt are the local time `.now()` without a UTC offset
+    """
+    # Odd that we are giving GitHub our local time but labeling it as zulu
+    # yet GitHub will return the correct contribution activity with the
+    # incorrectly set timezone.
+    from_ = start_dt.isoformat() + "Z"
+    to_ = end_dt.isoformat() + "Z"
+    query = create_contrib_query(loginname, from_, to_)
 
     resp = httpx.post(BASE_URL, json=query, headers=HEADERS)
     if not resp.is_success or "data" not in resp.json():
@@ -130,6 +145,7 @@ class PullRequest:
     additions: int
     deletions: int
     files: int
+    created_at: str
     url: str
 
 
@@ -137,10 +153,22 @@ def fetch_pull_requests(
     author: str,
     repoowner: str,
     reponame: str,
-    start: datetime.datetime,
-    end: datetime.datetime,
+    start_dt: datetime.datetime,
+    end_dt: datetime.datetime,
 ) -> list[PullRequest]:
-    """Fetch list of pull request details from GitHub GraphQL API."""
+    """
+    Fetch list of pull request details from GitHub GraphQL API.
+
+    Unlike fetch contributions, the start_dt and end_dt must be offset to UTC
+    in order to correctly filter the activity.
+
+    Args:
+        author: Results filtered to only include Author of pull request
+        repoowner: Owner of repo (or org)
+        reponame: Name of repo
+        start_dt: Earliest created at time for pull request
+        end_dt: Latest created at time for pull request
+    """
     cursor = None
     more = True
     prs = []
@@ -160,15 +188,15 @@ def fetch_pull_requests(
         # print(json.dumps(resp.json(), indent=4))
 
         for node in rjson["nodes"]:
-            updated = datetime.datetime.fromisoformat(node["updatedAt"].rstrip("Z"))
+            created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
 
             if node["author"]["login"] != author:
                 continue
 
-            if updated.date() > end.date():
+            if created_at > end_dt:
                 continue
 
-            if updated.date() < start.date():
+            if created_at < start_dt:
                 more = False
                 break
 
@@ -177,6 +205,7 @@ def fetch_pull_requests(
                     additions=node["additions"],
                     deletions=node["deletions"],
                     files=node["changedFiles"],
+                    created_at=node["createdAt"],
                     url=node["url"],
                 )
             )
@@ -187,18 +216,18 @@ def fetch_pull_requests(
 def runner() -> int:
     """Run the program."""
     # TODO: These will need to be in the config
-    timezone_offset = -5
+    timezone_offset = -4
     loginname = "Preocts"
 
     # TODO: GitHub operates in UTC so some timezone joy will be needed
     now = datetime.datetime.now()
     # REMOVE THIS
-    now = now.replace(month=8, day=30)
+    now = now.replace(month=8, day=27)
     offset = datetime.timedelta(hours=timezone_offset)
-    start_utc = now.replace(hour=0, minute=0, second=0, microsecond=0) + offset
-    end_utc = now.replace(hour=23, minute=59, second=59, microsecond=0) + offset
+    start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
 
-    contribs = fetch_contributions(loginname, start_utc.isoformat() + "Z")
+    contribs = fetch_contributions(loginname, start_dt, end_dt)
     print(contribs)
 
     for repo in contribs.pr_repos:
@@ -206,8 +235,8 @@ def runner() -> int:
             author=loginname,
             repoowner=repo.owner,
             reponame=repo.name,
-            start=start_utc,
-            end=end_utc,
+            start_dt=start_dt - offset,
+            end_dt=end_dt - offset,
         )
         for pr in pull_requests:
             print(pr)
