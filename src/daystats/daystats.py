@@ -132,7 +132,7 @@ def fetch_contributions(
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> Contributions | None:
+) -> Contributions:
     """
     Fetch contribution information from GitHub GraphQL API.
 
@@ -148,7 +148,7 @@ def fetch_contributions(
     resp_json = client.post(query)
     if "data" not in resp_json:
         print(json.dumps(resp_json, indent=4))
-        return None
+        return Contributions(0, 0, 0, 0, set())
 
     pr_repos = set()
     contribs = resp_json["data"]["user"]["contributionsCollection"]
@@ -186,7 +186,7 @@ def fetch_pull_requests(
     reponame: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> list[PullRequest] | None:
+) -> list[PullRequest]:
     """
     Fetch list of pull request details from GitHub GraphQL API.
 
@@ -210,7 +210,7 @@ def fetch_pull_requests(
         resp_json = client.post(query)
         if "data" not in resp_json:
             print(json.dumps(resp_json, indent=4))
-            return None
+            return []
 
         rjson = resp_json["data"]["repository"]["pullRequests"]
 
@@ -333,31 +333,50 @@ def _build_bookend_times(
     return start_dt, end_dt
 
 
-def runner() -> int:
-    """Run the program."""
-    args = parse_args()
-    client = HTTPClient(args.token, args.url)
+def get_stats(
+    client: HTTPClient,
+    loginname: str,
+    year: int | None = None,
+    month: int | None = None,
+    day: int | None = None,
+) -> tuple[Contributions, list[PullRequest]]:
+    """
+    Pull contribution and related pull request details from GitHub.
 
-    start_dt, end_dt = _build_bookend_times(args.year, args.month, args.day)
+    Uses today as the default date pulled.
+    """
+    start_dt, end_dt = _build_bookend_times(year, month, day)
 
-    contribs = fetch_contributions(client, args.loginname, start_dt, end_dt)
-    if not contribs:
-        print("Something went wrong")
-        return 1
-
-    print(contribs)
-
+    contribs = fetch_contributions(client, loginname, start_dt, end_dt)
+    pull_requests = []
     for repo in contribs.pr_repos:
-        pull_requests = fetch_pull_requests(
-            client=client,
-            author=args.loginname,
-            repoowner=repo.owner,
-            reponame=repo.name,
-            start_dt=start_dt - TIMEZONE_OFFSET,
-            end_dt=end_dt - TIMEZONE_OFFSET,
+        pull_requests.extend(
+            fetch_pull_requests(
+                client=client,
+                author=loginname,
+                repoowner=repo.owner,
+                reponame=repo.name,
+                start_dt=start_dt - TIMEZONE_OFFSET,
+                end_dt=end_dt - TIMEZONE_OFFSET,
+            )
         )
-        for pr in pull_requests or []:
-            print(pr)
+
+    return contribs, pull_requests
+
+
+def runner(cli_args: list[str] | None = None) -> int:
+    """Run the program."""
+    args = parse_args(cli_args)
+    client = HTTPClient(args.token, args.url)
+    contribs, pull_requests = get_stats(
+        client=client,
+        loginname=args.loginname,
+        year=args.year,
+        month=args.month,
+        day=args.day,
+    )
+    print(contribs)
+    print("\n".join([str(pr) for pr in pull_requests]))
 
     return 0
 
