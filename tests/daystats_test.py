@@ -47,11 +47,11 @@ def test_HTTPClient_post_returns_expected_mock_response() -> None:
         resp = client.post({})
 
     assert resp == {"foobar": "baz"}
-    assert mock_httpclient.HTTPSConnection.called_with(
+    mock_httpclient.HTTPSConnection.assert_called_with(
         "mock.com",
         timeout=daystats.HTTPS_TIMEOUT,
     )
-    assert mock_conn.request.called_with("POST", "/path", "{}", client._headers)
+    mock_conn.request.assert_called_with("POST", "/path", "{}", client._headers)
 
 
 def test_HTTPClient_post_returns_error_on_issue() -> None:

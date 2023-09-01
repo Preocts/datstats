@@ -19,7 +19,7 @@ BASE_URL = "https://api.github.com/graphql"
 TOKEN_KEY = "DAILYSTATS_PAT"
 HTTPS_TIMEOUT = 10  # seconds
 
-TOKEN = secretbox.SecretBox(auto_load=True).get(TOKEN_KEY)
+TOKEN = secretbox.SecretBox(auto_load=True).get(TOKEN_KEY, "")
 HEADERS = {"Authorization": f"bearer {TOKEN}"}
 NOW_ISO8601 = datetime.datetime.now().strftime("%Y-%m-%d") + "T00:00:00.000Z"
 
