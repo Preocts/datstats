@@ -9,11 +9,6 @@ import nox
 MODULE_NAME = "daystats"
 TESTS_PATH = "tests"
 COVERAGE_FAIL_UNDER = 50
-REQUIREMENT_IN_FILES = [
-    pathlib.Path("requirements/requirements.in"),
-    pathlib.Path("requirements/requirements-dev.in"),
-    pathlib.Path("requirements/requirements-test.in"),
-]
 
 # What we allowed to clean (delete)
 CLEANABLE_TARGETS = [
@@ -95,26 +90,6 @@ def build(session: nox.Session) -> None:
 
     session.install("build")
     session.run("python", "-m", "build")
-
-
-@nox.session()
-def update(session: nox.Session) -> None:
-    """Process requirement*.in files, updating only additions/removals."""
-    print_standard_logs(session)
-
-    session.install("pip-tools")
-    for filename in REQUIREMENT_IN_FILES:
-        session.run("pip-compile", "--no-emit-index-url", str(filename))
-
-
-@nox.session()
-def upgrade(session: nox.Session) -> None:
-    """Process requirement*.in files and upgrade all libraries as possible."""
-    print_standard_logs(session)
-
-    session.install("pip-tools")
-    for filename in REQUIREMENT_IN_FILES:
-        session.run("pip-compile", "--no-emit-index-url", "--upgrade", str(filename))
 
 
 @nox.session(python=False)
