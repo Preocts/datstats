@@ -11,7 +11,8 @@ import time
 from typing import Any
 
 # This couldn't possibily be a bad way to get the UTC offset :3c
-TIMEZONE_OFFSET = datetime.timedelta(hours=time.timezone // 60 // 60)
+OFFSET = time.altzone if time.daylight else time.timezone
+UTC_OFFSET = datetime.timedelta(hours=(OFFSET // 60 // 60))
 
 BASE_URL = "https://api.github.com/graphql"
 TOKEN_KEY = "DAILYSTATS_PAT"
@@ -125,6 +126,8 @@ def fetch_contributions(
     # Odd that we are giving GitHub our local time but labeling it as zulu
     # yet GitHub will return the correct contribution activity with the
     # incorrectly set timezone.
+    logger.debug("Start time: %s", start_dt)
+    logger.debug("End time: %s", end_dt)
     from_ = start_dt.isoformat() + "Z"
     to_ = end_dt.isoformat() + "Z"
     query = _create_contrib_query(loginname, from_, to_)
@@ -216,6 +219,8 @@ def fetch_pull_requests(
         start_dt: Earliest created at time for pull request in UTC
         end_dt: Latest created at time for pull request in UTC
     """
+    logger.debug("Start time: %s", start_dt)
+    logger.debug("End time: %s", end_dt)
     cursor = None
     more = True
     prs = []
@@ -237,14 +242,13 @@ def fetch_pull_requests(
         for node in rjson["nodes"]:
             created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
 
-            if created_at > end_dt:
+            if node["author"]["login"].lower() != author.lower():
+                logger.debug("Author does not match, skipping PR")
                 continue
 
-            if created_at < start_dt:
-                more = False
-                break
-
-            if node["author"]["login"].lower() != author.lower():
+            if not end_dt > created_at > start_dt:
+                logger.debug("Create date not in range - %s", created_at)
+                more = created_at > start_dt
                 continue
 
             prs.append(
@@ -303,7 +307,7 @@ def get_stats(
     start_dt, end_dt = _build_bookend_times(year, month, day)
     logger.debug("Start time: %s", start_dt)
     logger.debug("End time: %s", end_dt)
-    logger.debug("UTC Offset: %s", TIMEZONE_OFFSET)
+    logger.debug("UTC Offset: %s", UTC_OFFSET)
 
     contribs = fetch_contributions(client, loginname, start_dt, end_dt)
     pull_requests = []
@@ -314,8 +318,8 @@ def get_stats(
                 author=loginname,
                 repoowner=repo.owner,
                 reponame=repo.name,
-                start_dt=start_dt - TIMEZONE_OFFSET,
-                end_dt=end_dt - TIMEZONE_OFFSET,
+                start_dt=start_dt + UTC_OFFSET,
+                end_dt=end_dt + UTC_OFFSET,
             )
         )
 
