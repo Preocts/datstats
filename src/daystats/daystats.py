@@ -305,18 +305,27 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     )
 
 
-def _build_bookend_times(args: CLIArgs) -> tuple[datetime.datetime, datetime.datetime]:
-    """Build start/end datetime ranges from 00:00 to 23:59."""
+def _build_bookend_times(
+    year: int | None = None,
+    month: int | None = None,
+    day: int | None = None,
+) -> tuple[datetime.datetime, datetime.datetime]:
+    """
+    Build start/end datetime ranges from 00:00 to 23:59.
+
+    Raises:
+        ValueError: Raised if year/month/day values are not valid
+    """
     now = datetime.datetime.now()
 
-    if args.day:
-        now = now.replace(day=args.day)
+    if day:
+        now = now.replace(day=day)
 
-    if args.month:
-        now = now.replace(month=args.month)
+    if month:
+        now = now.replace(month=month)
 
-    if args.year:
-        now = now.replace(year=args.year)
+    if year:
+        now = now.replace(year=year)
 
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -329,8 +338,7 @@ def runner() -> int:
     args = parse_args()
     client = HTTPClient(args.token, args.url)
 
-    # TODO: Do not send entire model to function
-    start_dt, end_dt = _build_bookend_times(args)
+    start_dt, end_dt = _build_bookend_times(args.year, args.month, args.day)
 
     contribs = fetch_contributions(client, args.loginname, start_dt, end_dt)
     print(contribs)
