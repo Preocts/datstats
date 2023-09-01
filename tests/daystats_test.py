@@ -215,3 +215,53 @@ def test_fetch_pull_requets_error_handle() -> None:
         )
 
     assert result == []
+
+
+def test_get_stats() -> None:
+    """Assert our "do it all" function calls as expected"""
+
+    class MockRepo:
+        owner = "mock"
+        name = "mock"
+
+    class MockContrib:
+        pr_repos = [MockRepo(), MockRepo()]
+
+    client = daystats.HTTPClient("mock", "example.com")
+    mock_contrib = MockContrib()
+
+    with patch.object(daystats, "fetch_contributions") as mock_fetch_contrib:
+        with patch.object(daystats, "fetch_pull_requests") as mock_fetch_pr:
+            mock_fetch_contrib.return_value = mock_contrib
+            contribs, prs = daystats.get_stats(client, "preocts")
+
+    assert mock_fetch_contrib.call_count == 1
+    assert mock_fetch_pr.call_count == 2
+
+    assert contribs is mock_contrib
+    assert prs == []
+
+
+def test_runner() -> None:
+    """Assert our cli entry point calls as expected"""
+    args = [
+        "mock",
+        *("--day", "12"),
+        *("--month", "31"),
+        *("--year", "1998"),
+        *("--url", "https://github.com/broken"),
+        *("--token", "mock_token"),
+    ]
+    with patch.object(daystats, "get_stats") as mock_get_stats:
+        mock_get_stats.return_value = ("Hello", ["Hello", "World"])
+
+        result = daystats.runner(args)
+
+    call_kwargs = mock_get_stats.call_args[1]
+    assert call_kwargs["client"]._token == "mock_token"
+    assert call_kwargs["client"]._host == "github.com"
+    assert call_kwargs["loginname"] == "mock"
+    assert call_kwargs["day"] == 12
+    assert call_kwargs["month"] == 31
+    assert call_kwargs["year"] == 1998
+    assert result == 0
