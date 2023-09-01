@@ -11,6 +11,9 @@ from typing import Any
 import httpx
 import secretbox
 
+# This couldn't possibily be a bad way to get the UTC offset :3c
+TIMEZONE_OFFSET = datetime.timedelta(hours=time.timezone // 60 // 60)
+
 BASE_URL = "https://api.github.com/graphql"
 TOKEN = secretbox.SecretBox(auto_load=True).get("GITHUB_PAT")
 HEADERS = {"Authorization": f"bearer {TOKEN}"}
@@ -220,9 +223,9 @@ def fetch_pull_requests(
 @dataclasses.dataclass(frozen=True)
 class CLIArgs:
     loginname: str
-    year: int | None
-    month: int | None
-    day: int | None
+    year: int | None = None
+    month: int | None = None
+    day: int | None = None
     url: str = BASE_URL
     token: str | None = None
 
@@ -277,33 +280,43 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     )
 
 
-def runner() -> int:
-    """Run the program."""
-    # This couldn't possibily be a bad way to get the UTC offset :3c
-    timezone_offset = time.timezone // 60 // 60
-    loginname = "Preocts"
-
-    # TODO: GitHub operates in UTC so some timezone joy will be needed
+def _build_bookend_times(args: CLIArgs) -> tuple[datetime.datetime, datetime.datetime]:
+    """Build start/end datetime ranges from 00:00 to 23:59."""
     now = datetime.datetime.now()
-    # REMOVE THIS
-    now = now.replace(month=8, day=31)
-    offset = datetime.timedelta(hours=timezone_offset)
+
+    if args.day:
+        now = now.replace(day=args.day)
+
+    if args.month:
+        now = now.replace(month=args.month)
+
+    if args.year:
+        now = now.replace(year=args.year)
+
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
 
-    contribs = fetch_contributions(loginname, start_dt, end_dt)
-    print(contribs)
+    return start_dt, end_dt
 
-    for repo in contribs.pr_repos:
-        pull_requests = fetch_pull_requests(
-            author=loginname,
-            repoowner=repo.owner,
-            reponame=repo.name,
-            start_dt=start_dt + offset,
-            end_dt=end_dt + offset,
-        )
-        for pr in pull_requests:
-            print(pr)
+
+def runner() -> int:
+    """Run the program."""
+    # args = parse_args()
+    # client = HTTPClient(args.token, args.url)
+
+    # contribs = fetch_contributions(loginname, start_dt, end_dt)
+    # print(contribs)
+
+    # for repo in contribs.pr_repos:
+    #     pull_requests = fetch_pull_requests(
+    #         author=loginname,
+    #         repoowner=repo.owner,
+    #         reponame=repo.name,
+    #         start_dt=start_dt + offset,
+    #         end_dt=end_dt + offset,
+    #     )
+    #     for pr in pull_requests:
+    #         print(pr)
 
     return 0
 
