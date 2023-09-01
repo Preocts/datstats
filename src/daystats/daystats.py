@@ -132,7 +132,7 @@ def fetch_contributions(
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> Contributions:
+) -> Contributions | None:
     """
     Fetch contribution information from GitHub GraphQL API.
 
@@ -148,7 +148,7 @@ def fetch_contributions(
     resp_json = client.post(query)
     if "data" not in resp_json:
         print(json.dumps(resp_json, indent=4))
-        raise ValueError("Unexpected response from API.")
+        return None
 
     pr_repos = set()
     contribs = resp_json["data"]["user"]["contributionsCollection"]
@@ -160,7 +160,7 @@ def fetch_contributions(
         )
         pr_repos.add(repo)
 
-    # print(json.dumps(resp.json(), indent=4))
+    # print(json.dumps(resp_json, indent=4))
     return Contributions(
         commits=contribs["totalCommitContributions"],
         issues=contribs["totalIssueContributions"],
@@ -186,7 +186,7 @@ def fetch_pull_requests(
     reponame: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-) -> list[PullRequest]:
+) -> list[PullRequest] | None:
     """
     Fetch list of pull request details from GitHub GraphQL API.
 
@@ -198,8 +198,8 @@ def fetch_pull_requests(
         author: Results filtered to only include Author of pull request
         repoowner: Owner of repo (or org)
         reponame: Name of repo
-        start_dt: Earliest created at time for pull request
-        end_dt: Latest created at time for pull request
+        start_dt: Earliest created at time for pull request in UTC
+        end_dt: Latest created at time for pull request in UTC
     """
     cursor = None
     more = True
@@ -210,7 +210,7 @@ def fetch_pull_requests(
         resp_json = client.post(query)
         if "data" not in resp_json:
             print(json.dumps(resp_json, indent=4))
-            raise ValueError("Unexpected response from API.")
+            return None
 
         rjson = resp_json["data"]["repository"]["pullRequests"]
 
@@ -305,18 +305,27 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     )
 
 
-def _build_bookend_times(args: CLIArgs) -> tuple[datetime.datetime, datetime.datetime]:
-    """Build start/end datetime ranges from 00:00 to 23:59."""
+def _build_bookend_times(
+    year: int | None = None,
+    month: int | None = None,
+    day: int | None = None,
+) -> tuple[datetime.datetime, datetime.datetime]:
+    """
+    Build start/end datetime ranges from 00:00 to 23:59.
+
+    Raises:
+        ValueError: Raised if year/month/day values are not valid
+    """
     now = datetime.datetime.now()
 
-    if args.day:
-        now = now.replace(day=args.day)
+    if day:
+        now = now.replace(day=day)
 
-    if args.month:
-        now = now.replace(month=args.month)
+    if month:
+        now = now.replace(month=month)
 
-    if args.year:
-        now = now.replace(year=args.year)
+    if year:
+        now = now.replace(year=year)
 
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -329,10 +338,13 @@ def runner() -> int:
     args = parse_args()
     client = HTTPClient(args.token, args.url)
 
-    # TODO: Do not send entire model to function
-    start_dt, end_dt = _build_bookend_times(args)
+    start_dt, end_dt = _build_bookend_times(args.year, args.month, args.day)
 
     contribs = fetch_contributions(client, args.loginname, start_dt, end_dt)
+    if not contribs:
+        print("Something went wrong")
+        return 1
+
     print(contribs)
 
     for repo in contribs.pr_repos:
@@ -341,10 +353,10 @@ def runner() -> int:
             author=args.loginname,
             repoowner=repo.owner,
             reponame=repo.name,
-            start_dt=start_dt + TIMEZONE_OFFSET,
-            end_dt=end_dt + TIMEZONE_OFFSET,
+            start_dt=start_dt - TIMEZONE_OFFSET,
+            end_dt=end_dt - TIMEZONE_OFFSET,
         )
-        for pr in pull_requests:
+        for pr in pull_requests or []:
             print(pr)
 
     return 0
