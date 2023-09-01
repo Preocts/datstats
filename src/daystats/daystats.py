@@ -217,7 +217,7 @@ def fetch_pull_requests(
         cursor = rjson["pageInfo"]["endCursor"]
         more = rjson["pageInfo"]["hasNextPage"]
 
-        # print(json.dumps(resp_json, indent=4))
+        print(json.dumps(resp_json, indent=4))
 
         for node in rjson["nodes"]:
             created_at = datetime.datetime.fromisoformat(node["createdAt"].rstrip("Z"))
@@ -341,8 +341,8 @@ def runner() -> int:
             author=args.loginname,
             repoowner=repo.owner,
             reponame=repo.name,
-            start_dt=start_dt + TIMEZONE_OFFSET,
-            end_dt=end_dt + TIMEZONE_OFFSET,
+            start_dt=start_dt - TIMEZONE_OFFSET,
+            end_dt=end_dt - TIMEZONE_OFFSET,
         )
         for pr in pull_requests:
             print(pr)
