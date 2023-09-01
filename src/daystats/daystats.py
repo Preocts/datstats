@@ -20,6 +20,40 @@ HTTPS_TIMEOUT = 10  # seconds
 logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass(frozen=True)
+class CLIArgs:
+    loginname: str
+    year: int | None = None
+    month: int | None = None
+    day: int | None = None
+    url: str = BASE_URL
+    token: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class Repo:
+    owner: str
+    name: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Contributions:
+    commits: int
+    issues: int
+    pullrequests: int
+    reviews: int
+    pr_repos: set[Repo]
+
+
+@dataclasses.dataclass(frozen=True)
+class PullRequest:
+    additions: int
+    deletions: int
+    files: int
+    created_at: str
+    url: str
+
+
 class HTTPClient:
     def __init__(self, token: str | None, url: str = BASE_URL) -> None:
         """Define an HTTPClient with token and target GitHub GraphQL API url."""
@@ -77,60 +111,6 @@ query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
     return {"query": query, "variables": variables}
 
 
-def _create_diff_query(
-    repoowner: str,
-    reponame: str,
-    cursor: str | None = None,
-) -> dict[str, Any]:
-    """Return the query."""
-    query = """
-query($repoowner: String!, $reponame: String!, $cursor: String) {
-    repository(name:$reponame, owner:$repoowner) {
-        pullRequests(orderBy: {field:CREATED_AT, direction:DESC}, first:25, after:$cursor) {
-            totalCount
-            pageInfo {
-                endCursor
-                hasNextPage
-                hasPreviousPage
-                startCursor
-            }
-            nodes {
-                author {
-                    login
-                }
-                createdAt
-                updatedAt
-                additions
-                deletions
-                changedFiles
-                url
-            }
-        }
-    }
-}"""
-    variables = {
-        "cursor": cursor,
-        "repoowner": repoowner,
-        "reponame": reponame,
-    }
-    return {"query": query, "variables": variables}
-
-
-@dataclasses.dataclass(frozen=True)
-class Repo:
-    owner: str
-    name: str
-
-
-@dataclasses.dataclass(frozen=True)
-class Contributions:
-    commits: int
-    issues: int
-    pullrequests: int
-    reviews: int
-    pr_repos: set[Repo]
-
-
 def fetch_contributions(
     client: HTTPClient,
     loginname: str,
@@ -175,13 +155,43 @@ def fetch_contributions(
     )
 
 
-@dataclasses.dataclass(frozen=True)
-class PullRequest:
-    additions: int
-    deletions: int
-    files: int
-    created_at: str
-    url: str
+def _create_pull_request_query(
+    repoowner: str,
+    reponame: str,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    """Return the query."""
+    query = """
+query($repoowner: String!, $reponame: String!, $cursor: String) {
+    repository(name:$reponame, owner:$repoowner) {
+        pullRequests(orderBy: {field:CREATED_AT, direction:DESC}, first:25, after:$cursor) {
+            totalCount
+            pageInfo {
+                endCursor
+                hasNextPage
+                hasPreviousPage
+                startCursor
+            }
+            nodes {
+                author {
+                    login
+                }
+                createdAt
+                updatedAt
+                additions
+                deletions
+                changedFiles
+                url
+            }
+        }
+    }
+}"""
+    variables = {
+        "cursor": cursor,
+        "repoowner": repoowner,
+        "reponame": reponame,
+    }
+    return {"query": query, "variables": variables}
 
 
 def fetch_pull_requests(
@@ -211,7 +221,7 @@ def fetch_pull_requests(
     prs = []
 
     while more:
-        query = _create_diff_query(repoowner, reponame, cursor)
+        query = _create_pull_request_query(repoowner, reponame, cursor)
         resp_json = client.post(query)
         if "data" not in resp_json:
             logger.error("Fetch pull request failed: %s", json.dumps(resp_json))
@@ -248,78 +258,6 @@ def fetch_pull_requests(
             )
 
     return prs
-
-
-@dataclasses.dataclass(frozen=True)
-class CLIArgs:
-    loginname: str
-    year: int | None = None
-    month: int | None = None
-    day: int | None = None
-    url: str = BASE_URL
-    token: str | None = None
-
-
-def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        prog="daystats",
-        description="Pull daily stats from GitHub.",
-    )
-    parser.add_argument(
-        "loginname",
-        type=str,
-        help="Login name to GitHub (author name).",
-    )
-    parser.add_argument(
-        "--year",
-        type=int,
-        help="Year to query. (default: today)",
-    )
-    parser.add_argument(
-        "--month",
-        type=int,
-        help="Month of the year to query. (default: today)",
-    )
-    parser.add_argument(
-        "--day",
-        type=int,
-        help="Day of the month to query. (default: today)",
-    )
-    parser.add_argument(
-        "--url",
-        type=str,
-        help=f"Override default GitHub GraphQL API url. (default: {BASE_URL})",
-        default=BASE_URL,
-    )
-    parser.add_argument(
-        "--token",
-        type=str,
-        help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
-        default=os.getenv(TOKEN_KEY),
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Turn debug logging output on. Use with care, will expose token!",
-    )
-
-    args = parser.parse_args(cli_args)
-
-    if args.debug:
-        logging.basicConfig(level="DEBUG")
-
-    logger.debug("CLI Input Override: %s", cli_args)
-    logger.debug("CLI Input: %s:", args)
-
-    return CLIArgs(
-        loginname=args.loginname,
-        year=args.year,
-        month=args.month,
-        day=args.day,
-        url=args.url,
-        token=args.token,
-    )
 
 
 def _build_bookend_times(
@@ -382,6 +320,68 @@ def get_stats(
         )
 
     return contribs, pull_requests
+
+
+def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        prog="daystats",
+        description="Pull daily stats from GitHub.",
+    )
+    parser.add_argument(
+        "loginname",
+        type=str,
+        help="Login name to GitHub (author name).",
+    )
+    parser.add_argument(
+        "--year",
+        type=int,
+        help="Year to query. (default: today)",
+    )
+    parser.add_argument(
+        "--month",
+        type=int,
+        help="Month of the year to query. (default: today)",
+    )
+    parser.add_argument(
+        "--day",
+        type=int,
+        help="Day of the month to query. (default: today)",
+    )
+    parser.add_argument(
+        "--url",
+        type=str,
+        help=f"Override default GitHub GraphQL API url. (default: {BASE_URL})",
+        default=BASE_URL,
+    )
+    parser.add_argument(
+        "--token",
+        type=str,
+        help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
+        default=os.getenv(TOKEN_KEY),
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Turn debug logging output on. Use with care, will expose token!",
+    )
+
+    args = parser.parse_args(cli_args)
+
+    if args.debug:
+        logging.basicConfig(level="DEBUG")
+
+    logger.debug("CLI Input Override: %s", cli_args)
+    logger.debug("CLI Input: %s:", args)
+
+    return CLIArgs(
+        loginname=args.loginname,
+        year=args.year,
+        month=args.month,
+        day=args.day,
+        url=args.url,
+        token=args.token,
+    )
 
 
 def runner(cli_args: list[str] | None = None) -> int:

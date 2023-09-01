@@ -8,7 +8,7 @@ import nox
 # Control factors for finding pieces of the module
 MODULE_NAME = "daystats"
 TESTS_PATH = "tests"
-COVERAGE_FAIL_UNDER = 50
+COVERAGE_FAIL_UNDER = 100
 
 # What we allowed to clean (delete)
 CLEANABLE_TARGETS = [
