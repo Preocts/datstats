@@ -15,6 +15,13 @@ CONTRIBUTION_FIXTURE = pathlib.Path("tests/fixture_contribution.json").read_text
 REPOSITORY_FIXTURE = pathlib.Path("tests/fixture_repository_paged.json").read_text()
 
 
+def test_main_for_module_exists() -> None:
+    """Need a better method behind testing these."""
+    from daystats import __main__
+
+    assert __main__
+
+
 def test_HTTPClient_headers() -> None:
     """Sanity check that User-Agent exists and token is used."""
     client = daystats.HTTPClient("mock_token")

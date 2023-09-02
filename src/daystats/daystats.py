@@ -15,7 +15,7 @@ OFFSET = time.altzone if time.daylight else time.timezone
 UTC_OFFSET = datetime.timedelta(hours=(OFFSET // 60 // 60))
 
 BASE_URL = "https://api.github.com/graphql"
-TOKEN_KEY = "DAILYSTATS_PAT"
+TOKEN_KEY = "DAYSTATS_TOKEN"
 HTTPS_TIMEOUT = 10  # seconds
 
 logger = logging.getLogger(__name__)
@@ -372,7 +372,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     parser.add_argument(
         "--token",
         type=str,
-        help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
+        help=f"GitHub Personal Access Token with read-only access for public repos. Defaults to ${TOKEN_KEY} environ variable.",
         default=os.getenv(TOKEN_KEY),
     )
     parser.add_argument(

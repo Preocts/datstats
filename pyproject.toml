@@ -35,9 +35,8 @@ test = ["pytest", "pytest-randomly", "coverage", "nox"]
 [project.urls]
 homepage = "https://github.com/Preocts/daystats"
 
-# CLI scripts if needed
 [project.scripts]
-pull-stats = "daystats.daystats:runner"
+daystats = "daystats.daystats:runner"
 
 [tool.setuptools.package-data]
 "daystats" = ["py.typed"]
