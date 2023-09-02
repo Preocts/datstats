@@ -196,6 +196,8 @@ def test_fetch_pull_requets_successful_parsing() -> None:
     assert result[0].files == 10
     assert result[0].created_at == "2023-09-01T04:51:04Z"
     assert result[0].url == "https://github.com/Preocts/daystats/pull/5"
+    assert result[0].number == 5
+    assert result[0].reponame == "daystats"
 
 
 def test_fetch_pull_requets_error_handle() -> None:

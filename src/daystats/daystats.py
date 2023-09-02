@@ -48,10 +48,12 @@ class Contributions:
 
 @dataclasses.dataclass(frozen=True)
 class PullRequest:
+    reponame: str
     additions: int
     deletions: int
     files: int
     created_at: str
+    number: int
     url: str
 
 
@@ -185,6 +187,7 @@ query($repoowner: String!, $reponame: String!, $cursor: String) {
                 deletions
                 changedFiles
                 url
+                number
             }
         }
     }
@@ -253,10 +256,12 @@ def fetch_pull_requests(
 
             prs.append(
                 PullRequest(
+                    reponame=reponame,
                     additions=node["additions"],
                     deletions=node["deletions"],
                     files=node["changedFiles"],
                     created_at=node["createdAt"],
+                    number=node["number"],
                     url=node["url"],
                 )
             )
