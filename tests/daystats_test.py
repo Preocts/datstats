@@ -268,3 +268,54 @@ def test_runner() -> None:
     assert call_kwargs["month"] == 31
     assert call_kwargs["year"] == 1998
     assert result == 0
+
+
+def test_stats_to_markdown_expected_output() -> None:
+    """Assert our output doesn't change without awareness."""
+    expected = """\
+
+**Daily GitHub Summary**:
+
+| Contribution | Count | Metric | Total |
+| -- | -- | -- | -- |
+| Reviews | 1 | Files Changed | 12 |
+| Issues | 1 | Additions | 12 |
+| Commits | 1 | Deletions | 12 |
+| Pull Requests | 1 | | |
+
+**Pull Request Breakdown**:
+
+| Repo | Addition | Deletion | Files | Number |
+| -- | -- | -- | -- | -- |
+| mock | 12 | 12 | 12 | [see: #1](https://mock) |"""
+    contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
+    pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
+
+    result = daystats.stats_to_markdown(contrib, pulls)
+
+    assert result == expected
+
+
+def test_stats_to_text_expected_output() -> None:
+    """Assert our output doesn't change without awareness."""
+    expected = """\
+
+Daily GitHub Summary:
+|    Contribution    | Count |    Metric     | Total |
+------------------------------------------------------
+| Reviews            |   1   | Files Changed |  12   |
+| Issue              |   1   | Additions     |  12   |
+| Commits            |   1   | Deletions     |  12   |
+| Pull Requests      |   1   |               |       |
+
+Pull Request Breakdown:
+
+| Addition | Deletion | Files | Number | Url
+----------------------------------------
+|    12    |    12    |  12   |   1    | https://mock"""
+    contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
+    pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
+
+    result = daystats.stats_to_text(contrib, pulls)
+
+    assert result == expected
