@@ -29,6 +29,7 @@ class CLIArgs:
     day: int | None = None
     url: str = BASE_URL
     token: str | None = None
+    markdown: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -343,6 +344,11 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
         help="Login name to GitHub (author name).",
     )
     parser.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Changes the text output to Markdown table for copy/paste.",
+    )
+    parser.add_argument(
         "--year",
         type=int,
         help="Year to query. (default: today)",
@@ -390,6 +396,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
         day=args.day,
         url=args.url,
         token=args.token,
+        markdown=args.markdown,
     )
 
 

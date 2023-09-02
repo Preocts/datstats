@@ -84,6 +84,7 @@ def test_parse_args_defaults() -> None:
     assert result.year is None
     assert result.url == BASE_URL
     assert result.token == "mock_token"
+    assert result.markdown is False
 
 
 def test_parse_args_flags() -> None:
@@ -97,6 +98,7 @@ def test_parse_args_flags() -> None:
         *("--url", "https://github.com/broken"),
         *("--token", "mockier_token"),
         "--debug",
+        "--markdown",
     ]
 
     with patch.dict(os.environ, env):
@@ -108,6 +110,7 @@ def test_parse_args_flags() -> None:
     assert result.year == 1998
     assert result.url == "https://github.com/broken"
     assert result.token == "mockier_token"
+    assert result.markdown is True
 
 
 def test_build_bookend_from_now() -> None:
