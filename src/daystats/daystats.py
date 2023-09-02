@@ -29,6 +29,7 @@ class CLIArgs:
     day: int | None = None
     url: str = BASE_URL
     token: str | None = None
+    markdown: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -48,10 +49,12 @@ class Contributions:
 
 @dataclasses.dataclass(frozen=True)
 class PullRequest:
+    reponame: str
     additions: int
     deletions: int
     files: int
     created_at: str
+    number: int
     url: str
 
 
@@ -185,6 +188,7 @@ query($repoowner: String!, $reponame: String!, $cursor: String) {
                 deletions
                 changedFiles
                 url
+                number
             }
         }
     }
@@ -253,10 +257,12 @@ def fetch_pull_requests(
 
             prs.append(
                 PullRequest(
+                    reponame=reponame,
                     additions=node["additions"],
                     deletions=node["deletions"],
                     files=node["changedFiles"],
                     created_at=node["createdAt"],
+                    number=node["number"],
                     url=node["url"],
                 )
             )
@@ -338,6 +344,11 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
         help="Login name to GitHub (author name).",
     )
     parser.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Changes the text output to Markdown table for copy/paste.",
+    )
+    parser.add_argument(
         "--year",
         type=int,
         help="Year to query. (default: today)",
@@ -385,6 +396,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
         day=args.day,
         url=args.url,
         token=args.token,
+        markdown=args.markdown,
     )
 
 
@@ -403,11 +415,75 @@ def runner(cli_args: list[str] | None = None) -> int:
     logger.debug("Contributions: %s", contribs)
     logger.debug("Pull Requests:\n%s", "\n".join([str(pr) for pr in pull_requests]))
 
-    # TODO: Build output emitters
-    print(contribs)
-    print("\n".join([str(pr) for pr in pull_requests]))
+    print(generate_output(contribs, pull_requests, markdown=args.markdown))
 
     return 0
+
+
+def generate_output(
+    contribs: Contributions,
+    pull_requests: list[PullRequest],
+    *,
+    markdown: bool = False,
+) -> str:
+    """Check CLI flags for various outputs."""
+    if markdown:
+        return _stats_to_markdown(contribs, pull_requests)
+
+    return _stats_to_text(contribs, pull_requests)
+
+
+def _stats_to_markdown(
+    contribs: Contributions, pull_requests: list[PullRequest]
+) -> str:
+    """Generate markdown report of stats."""
+    total_adds = sum([pr.additions for pr in pull_requests])
+    total_dels = sum([pr.deletions for pr in pull_requests])
+    total_files = sum([pr.files for pr in pull_requests])
+
+    summary_table = [
+        "\n**Daily GitHub Summary**:\n",
+        "| Contribution | Count | Metric | Total |",
+        "| -- | -- | -- | -- |",
+        f"| Reviews | {contribs.reviews} | Files Changed | {total_files} |",
+        f"| Issues | {contribs.issues} | Additions | {total_adds} |",
+        f"| Commits | {contribs.commits} | Deletions | {total_dels} |",
+        f"| Pull Requests | {contribs.pullrequests} | | |",
+        "\n**Pull Request Breakdown**:\n",
+        "| Repo | Addition | Deletion | Files | Number |",
+        "| -- | -- | -- | -- | -- |",
+    ]
+    for pr in pull_requests:
+        summary_table.append(
+            f"| {pr.reponame} | {pr.additions} | {pr.deletions} | {pr.files} | [see: #{pr.number}]({pr.url}) |"
+        )
+
+    return "\n".join(summary_table)
+
+
+def _stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) -> str:
+    """Generate plain-text of stats."""
+    total_adds = sum([pr.additions for pr in pull_requests])
+    total_dels = sum([pr.deletions for pr in pull_requests])
+    total_files = sum([pr.files for pr in pull_requests])
+    summary = [
+        "\nDaily GitHub Summary:\n"
+        f'|{"Contribution":^20}|{"Count":^7}|{"Metric":^15}|{"Total":^7}|',
+        "-" * (20 + 7 + 15 + 7 + 5),
+        f'|{" Reviews":20}|{contribs.reviews:^7}|{" Files Changed":15}|{total_files:^7}|',
+        f'|{" Issue":20}|{contribs.issues:^7}|{" Additions":15}|{total_adds:^7}|',
+        f'|{" Commits":20}|{contribs.commits:^7}|{" Deletions":15}|{total_dels:^7}|',
+        f'|{" Pull Requests":20}|{contribs.pullrequests:^7}|{"":15}|{"":^7}|',
+        "\nPull Request Breakdown:\n",
+        f'|{"Addition":^10}|{"Deletion":^10}|{"Files":^7}|{"Number":^8}| Url',
+        "-" * (10 + 10 + 7 + 8 + 5),
+    ]
+    for pr in pull_requests:
+        summary.append(
+            f"|{pr.additions:^10}|{pr.deletions:^10}|{pr.files:^7}|{pr.number:^8}| {pr.url}"
+        )
+
+    return "\n".join(summary)
 
 
 if __name__ == "__main__":

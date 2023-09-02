@@ -84,6 +84,7 @@ def test_parse_args_defaults() -> None:
     assert result.year is None
     assert result.url == BASE_URL
     assert result.token == "mock_token"
+    assert result.markdown is False
 
 
 def test_parse_args_flags() -> None:
@@ -97,6 +98,7 @@ def test_parse_args_flags() -> None:
         *("--url", "https://github.com/broken"),
         *("--token", "mockier_token"),
         "--debug",
+        "--markdown",
     ]
 
     with patch.dict(os.environ, env):
@@ -108,6 +110,7 @@ def test_parse_args_flags() -> None:
     assert result.year == 1998
     assert result.url == "https://github.com/broken"
     assert result.token == "mockier_token"
+    assert result.markdown is True
 
 
 def test_build_bookend_from_now() -> None:
@@ -196,6 +199,8 @@ def test_fetch_pull_requets_successful_parsing() -> None:
     assert result[0].files == 10
     assert result[0].created_at == "2023-09-01T04:51:04Z"
     assert result[0].url == "https://github.com/Preocts/daystats/pull/5"
+    assert result[0].number == 5
+    assert result[0].reponame == "daystats"
 
 
 def test_fetch_pull_requets_error_handle() -> None:
@@ -254,9 +259,10 @@ def test_runner() -> None:
         *("--token", "mock_token"),
     ]
     with patch.object(daystats, "get_stats") as mock_get_stats:
-        mock_get_stats.return_value = ("Hello", ["Hello", "World"])
+        with patch.object(daystats, "generate_output"):
+            mock_get_stats.return_value = ("Hello", ["Hello", "World"])
 
-        result = daystats.runner(args)
+            result = daystats.runner(args)
 
     call_kwargs = mock_get_stats.call_args[1]
     assert call_kwargs["client"]._token == "mock_token"
@@ -266,3 +272,54 @@ def test_runner() -> None:
     assert call_kwargs["month"] == 31
     assert call_kwargs["year"] == 1998
     assert result == 0
+
+
+def test_stats_to_markdown_expected_output() -> None:
+    """Assert our output doesn't change without awareness."""
+    expected = """\
+
+**Daily GitHub Summary**:
+
+| Contribution | Count | Metric | Total |
+| -- | -- | -- | -- |
+| Reviews | 1 | Files Changed | 12 |
+| Issues | 1 | Additions | 12 |
+| Commits | 1 | Deletions | 12 |
+| Pull Requests | 1 | | |
+
+**Pull Request Breakdown**:
+
+| Repo | Addition | Deletion | Files | Number |
+| -- | -- | -- | -- | -- |
+| mock | 12 | 12 | 12 | [see: #1](https://mock) |"""
+    contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
+    pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
+
+    result = daystats.generate_output(contrib, pulls, markdown=True)
+
+    assert result == expected
+
+
+def test_stats_to_text_expected_output() -> None:
+    """Assert our output doesn't change without awareness."""
+    expected = """\
+
+Daily GitHub Summary:
+|    Contribution    | Count |    Metric     | Total |
+------------------------------------------------------
+| Reviews            |   1   | Files Changed |  12   |
+| Issue              |   1   | Additions     |  12   |
+| Commits            |   1   | Deletions     |  12   |
+| Pull Requests      |   1   |               |       |
+
+Pull Request Breakdown:
+
+| Addition | Deletion | Files | Number | Url
+----------------------------------------
+|    12    |    12    |  12   |   1    | https://mock"""
+    contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
+    pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
+
+    result = daystats.generate_output(contrib, pulls, markdown=False)
+
+    assert result == expected
