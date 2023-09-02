@@ -15,7 +15,7 @@ OFFSET = time.altzone if time.daylight else time.timezone
 UTC_OFFSET = datetime.timedelta(hours=(OFFSET // 60 // 60))
 
 BASE_URL = "https://api.github.com/graphql"
-TOKEN_KEY = "DAILYSTATS_PAT"
+TOKEN_KEY = "DAYSTATS_TOKEN"
 HTTPS_TIMEOUT = 10  # seconds
 
 logger = logging.getLogger(__name__)
