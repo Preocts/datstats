@@ -372,7 +372,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     parser.add_argument(
         "--token",
         type=str,
-        help=f"GitHub Personal Access Token with read-only access for publis repos. Defaults to ${TOKEN_KEY} environ variable.",
+        help=f"GitHub Personal Access Token with read-only access for public repos. Defaults to ${TOKEN_KEY} environ variable.",
         default=os.getenv(TOKEN_KEY),
     )
     parser.add_argument(
