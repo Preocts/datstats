@@ -259,9 +259,10 @@ def test_runner() -> None:
         *("--token", "mock_token"),
     ]
     with patch.object(daystats, "get_stats") as mock_get_stats:
-        mock_get_stats.return_value = ("Hello", ["Hello", "World"])
+        with patch.object(daystats, "generate_output"):
+            mock_get_stats.return_value = ("Hello", ["Hello", "World"])
 
-        result = daystats.runner(args)
+            result = daystats.runner(args)
 
     call_kwargs = mock_get_stats.call_args[1]
     assert call_kwargs["client"]._token == "mock_token"
@@ -294,7 +295,7 @@ def test_stats_to_markdown_expected_output() -> None:
     contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
     pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
 
-    result = daystats.stats_to_markdown(contrib, pulls)
+    result = daystats.generate_output(contrib, pulls, markdown=True)
 
     assert result == expected
 
@@ -319,6 +320,6 @@ Pull Request Breakdown:
     contrib = daystats.Contributions(1, 1, 1, 1, pr_repos=set())
     pulls = [daystats.PullRequest("mock", 12, 12, 12, "sometime", 1, "https://mock")]
 
-    result = daystats.stats_to_text(contrib, pulls)
+    result = daystats.generate_output(contrib, pulls, markdown=False)
 
     assert result == expected

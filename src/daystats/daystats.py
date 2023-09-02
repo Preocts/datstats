@@ -415,21 +415,27 @@ def runner(cli_args: list[str] | None = None) -> int:
     logger.debug("Contributions: %s", contribs)
     logger.debug("Pull Requests:\n%s", "\n".join([str(pr) for pr in pull_requests]))
 
-    # TODO: Build output emitters
-    # print(contribs)
-    # print("\n".join([str(pr) for pr in pull_requests]))
-    # print(stats_to_markdown(contribs, pull_requests))
-    # print(stats_to_text(contribs, pull_requests))
+    print(generate_output(contribs, pull_requests, markdown=args.markdown))
 
     return 0
 
 
-def handle_output(args: CLIArgs) -> None:
+def generate_output(
+    contribs: Contributions,
+    pull_requests: list[PullRequest],
+    *,
+    markdown: bool = False,
+) -> str:
     """Check CLI flags for various outputs."""
-    ...
+    if markdown:
+        return _stats_to_markdown(contribs, pull_requests)
+
+    return _stats_to_text(contribs, pull_requests)
 
 
-def stats_to_markdown(contribs: Contributions, pull_requests: list[PullRequest]) -> str:
+def _stats_to_markdown(
+    contribs: Contributions, pull_requests: list[PullRequest]
+) -> str:
     """Generate markdown report of stats."""
     total_adds = sum([pr.additions for pr in pull_requests])
     total_dels = sum([pr.deletions for pr in pull_requests])
@@ -455,7 +461,7 @@ def stats_to_markdown(contribs: Contributions, pull_requests: list[PullRequest])
     return "\n".join(summary_table)
 
 
-def stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) -> str:
+def _stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) -> str:
     """Generate plain-text of stats."""
     total_adds = sum([pr.additions for pr in pull_requests])
     total_dels = sum([pr.deletions for pr in pull_requests])
