@@ -437,9 +437,9 @@ def _stats_to_markdown(
     contribs: Contributions, pull_requests: list[PullRequest]
 ) -> str:
     """Generate markdown report of stats."""
-    total_adds = sum([pr.additions for pr in pull_requests])
-    total_dels = sum([pr.deletions for pr in pull_requests])
-    total_files = sum([pr.files for pr in pull_requests])
+    total_adds = sum(pr.additions for pr in pull_requests)
+    total_dels = sum(pr.deletions for pr in pull_requests)
+    total_files = sum(pr.files for pr in pull_requests)
 
     summary_table = [
         "\n**Daily GitHub Summary**:\n",
@@ -463,9 +463,9 @@ def _stats_to_markdown(
 
 def _stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) -> str:
     """Generate plain-text of stats."""
-    total_adds = sum([pr.additions for pr in pull_requests])
-    total_dels = sum([pr.deletions for pr in pull_requests])
-    total_files = sum([pr.files for pr in pull_requests])
+    total_adds = sum(pr.additions for pr in pull_requests)
+    total_dels = sum(pr.deletions for pr in pull_requests)
+    total_files = sum(pr.files for pr in pull_requests)
     summary = [
         "\nDaily GitHub Summary:\n"
         f'|{"Contribution":^20}|{"Count":^7}|{"Metric":^15}|{"Total":^7}|',
