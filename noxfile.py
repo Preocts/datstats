@@ -12,13 +12,13 @@ COVERAGE_FAIL_UNDER = 100
 
 # What we allowed to clean (delete)
 CLEANABLE_TARGETS = [
-    "./**/__pycache__",
+    "./**/build",
+    "./**/dist",
+    "./**/.nox",
     "./**/.mypy_cache",
     "./**/.pytest_cache",
     "./**/.coverage",
-    "./**/.nox",
-    "./**/dist",
-    "./**/build",
+    "./**/__pycache__",
     "./**/*.pyc",
     "./**/*.pyo",
     "./**/coverage.json",
