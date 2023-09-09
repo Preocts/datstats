@@ -283,14 +283,14 @@ def _build_bookend_times(
     """
     now = datetime.datetime.now()
 
-    if day:
-        now = now.replace(day=day)
+    if year:
+        now = now.replace(year=year)
 
     if month:
         now = now.replace(month=month)
 
-    if year:
-        now = now.replace(year=year)
+    if day:
+        now = now.replace(day=day)
 
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
