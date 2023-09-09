@@ -252,12 +252,12 @@ def test_get_stats() -> None:
     assert prs == []
 
 
-def test_runner() -> None:
+def test_cli_runner() -> None:
     """Assert our cli entry point calls as expected"""
     args = [
         "mock",
-        *("--day", "12"),
-        *("--month", "31"),
+        *("--day", "31"),
+        *("--month", "12"),
         *("--year", "1998"),
         *("--url", "https://github.com/broken"),
         *("--token", "mock_token"),
@@ -266,14 +266,14 @@ def test_runner() -> None:
         with patch.object(daystats, "generate_output"):
             mock_get_stats.return_value = ("Hello", ["Hello", "World"])
 
-            result = daystats.runner(args)
+            result = daystats.cli_runner(args)
 
     call_kwargs = mock_get_stats.call_args[1]
     assert call_kwargs["client"]._token == "mock_token"
     assert call_kwargs["client"]._host == "github.com"
     assert call_kwargs["loginname"] == "mock"
-    assert call_kwargs["day"] == 12
-    assert call_kwargs["month"] == 31
+    assert call_kwargs["day"] == 31
+    assert call_kwargs["month"] == 12
     assert call_kwargs["year"] == 1998
     assert result == 0
 

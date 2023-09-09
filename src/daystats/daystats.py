@@ -400,7 +400,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     )
 
 
-def runner(cli_args: list[str] | None = None) -> int:
+def cli_runner(cli_args: list[str] | None = None) -> int:
     """Run the program."""
     args = parse_args(cli_args)
     client = HTTPClient(args.token, args.url)
@@ -487,4 +487,4 @@ def _stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) ->
 
 
 if __name__ == "__main__":
-    raise SystemExit(runner())
+    raise SystemExit(cli_runner())
