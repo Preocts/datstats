@@ -299,8 +299,10 @@ def _build_bookend_times(
 
 
 def get_stats(
-    client: HTTPClient,
     loginname: str,
+    *,
+    token: str | None = None,
+    url: str | None = None,
     year: int | None = None,
     month: int | None = None,
     day: int | None = None,
@@ -308,8 +310,14 @@ def get_stats(
     """
     Pull contribution and related pull request details from GitHub.
 
-    Uses today as the default date pulled.
+    Keyword Args:
+        token: GitHub personal access token. Default looks for TOKEN_KEY in environ
+        url: GitHub graphQL api url. Default uses BASE_URL
+        year: Uses today as the default date.
+        month: Uses today as the default date.
+        day: Uses today as the default date.
     """
+    client = HTTPClient(token, url if url else BASE_URL)
     start_dt, end_dt = _build_bookend_times(year, month, day)
     logger.debug("Start time: %s", start_dt)
     logger.debug("End time: %s", end_dt)
@@ -403,10 +411,11 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
 def cli_runner(cli_args: list[str] | None = None) -> int:
     """Run the program."""
     args = parse_args(cli_args)
-    client = HTTPClient(args.token, args.url)
+
     contribs, pull_requests = get_stats(
-        client=client,
         loginname=args.loginname,
+        token=args.token,
+        url=args.url,
         year=args.year,
         month=args.month,
         day=args.day,

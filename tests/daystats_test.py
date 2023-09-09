@@ -237,13 +237,16 @@ def test_get_stats() -> None:
     class MockContrib:
         pr_repos = [MockRepo(), MockRepo()]
 
-    client = daystats.HTTPClient("mock", "example.com")
     mock_contrib = MockContrib()
 
     with patch.object(daystats, "fetch_contributions") as mock_fetch_contrib:
         with patch.object(daystats, "fetch_pull_requests") as mock_fetch_pr:
             mock_fetch_contrib.return_value = mock_contrib
-            contribs, prs = daystats.get_stats(client, "preocts")
+            contribs, prs = daystats.get_stats(
+                "preocts",
+                token="mock",
+                url="https://example.com",
+            )
 
     assert mock_fetch_contrib.call_count == 1
     assert mock_fetch_pr.call_count == 2
@@ -268,13 +271,14 @@ def test_cli_runner() -> None:
 
             result = daystats.cli_runner(args)
 
-    call_kwargs = mock_get_stats.call_args[1]
-    assert call_kwargs["client"]._token == "mock_token"
-    assert call_kwargs["client"]._host == "github.com"
-    assert call_kwargs["loginname"] == "mock"
-    assert call_kwargs["day"] == 31
-    assert call_kwargs["month"] == 12
-    assert call_kwargs["year"] == 1998
+    mock_get_stats.assert_called_once_with(
+        loginname="mock",
+        token="mock_token",
+        url="https://github.com/broken",
+        year=1998,
+        month=12,
+        day=31,
+    )
     assert result == 0
 
 
