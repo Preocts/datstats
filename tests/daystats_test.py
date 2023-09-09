@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from daystats import daystats
-from daystats.daystats import BASE_URL
 from daystats.daystats import TOKEN_KEY
 
 CONTRIBUTION_FIXTURE = pathlib.Path("tests/fixture_contribution.json").read_text()
@@ -81,17 +80,12 @@ def test_parse_args_defaults() -> None:
     """Assert parsing returns expected defaults."""
     args = ["mock"]
     env = {TOKEN_KEY: "mock_token"}
+    expected = daystats.CLIArgs(loginname="mock", token="mock_token")
 
     with patch.dict(os.environ, env):
         result = daystats.parse_args(args)
 
-    assert result.loginname == "mock"
-    assert result.day is None
-    assert result.month is None
-    assert result.year is None
-    assert result.url == BASE_URL
-    assert result.token == "mock_token"
-    assert result.markdown is False
+    assert result == expected
 
 
 def test_parse_args_flags() -> None:
@@ -99,25 +93,28 @@ def test_parse_args_flags() -> None:
     env = {TOKEN_KEY: "mock_token"}
     args = [
         "mock",
-        *("--day", "12"),
-        *("--month", "31"),
+        *("--day", "31"),
+        *("--month", "12"),
         *("--year", "1998"),
         *("--url", "https://github.com/broken"),
         *("--token", "mockier_token"),
         "--debug",
         "--markdown",
     ]
+    expected = daystats.CLIArgs(
+        loginname="mock",
+        year=1998,
+        month=12,
+        day=31,
+        url="https://github.com/broken",
+        token="mockier_token",
+        markdown=True,
+    )
 
     with patch.dict(os.environ, env):
         result = daystats.parse_args(args)
 
-    assert result.loginname == "mock"
-    assert result.day == 12
-    assert result.month == 31
-    assert result.year == 1998
-    assert result.url == "https://github.com/broken"
-    assert result.token == "mockier_token"
-    assert result.markdown is True
+    assert result == expected
 
 
 def test_build_bookend_from_now() -> None:
