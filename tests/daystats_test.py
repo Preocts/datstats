@@ -23,7 +23,7 @@ def test_main_for_module_exists() -> None:
 
 def test_HTTPClient_headers() -> None:
     """Sanity check that User-Agent exists and token is used."""
-    client = daystats.HTTPClient("mock_token")
+    client = daystats._HTTPClient("mock_token")
 
     assert client._headers["Authorization"] == "bearer mock_token"
     assert "User-Agent" in client._headers
@@ -31,7 +31,7 @@ def test_HTTPClient_headers() -> None:
 
 def test_HTTPClient_cleans_url_and_splits_on_init() -> None:
     """Using http.client means no https://"""
-    client = daystats.HTTPClient("mock", "https://example.com/foobar/baz")
+    client = daystats._HTTPClient("mock", "https://example.com/foobar/baz")
 
     assert client._host == "example.com"
     assert client._path == "foobar/baz"
@@ -39,7 +39,7 @@ def test_HTTPClient_cleans_url_and_splits_on_init() -> None:
 
 def test_HTTPClient_cleans_url_and_handles_no_path() -> None:
     """Custom host or proxy edge-case"""
-    client = daystats.HTTPClient("mock", "https://example.com")
+    client = daystats._HTTPClient("mock", "https://example.com")
 
     assert client._host == "example.com"
     assert client._path == ""
@@ -50,7 +50,7 @@ def test_HTTPClient_post_returns_expected_mock_response() -> None:
     # One day I'll give up using http.client. Not today though.
     mock_conn = MagicMock()
     mock_conn.getresponse.return_value.read.return_value = b'{"foobar": "baz"}'
-    client = daystats.HTTPClient("mock", "https://mock.com/path")
+    client = daystats._HTTPClient("mock", "https://mock.com/path")
 
     with patch("http.client") as mock_httpclient:
         mock_httpclient.HTTPSConnection.return_value = mock_conn
@@ -67,7 +67,7 @@ def test_HTTPClient_post_returns_expected_mock_response() -> None:
 def test_HTTPClient_post_returns_error_on_issue() -> None:
     mock_conn = MagicMock()
     mock_conn.getresponse.return_value.read.return_value = b"foobar"
-    client = daystats.HTTPClient("mock", "https://mock.com/path")
+    client = daystats._HTTPClient("mock", "https://mock.com/path")
 
     with patch("http.client") as mock_httpclient:
         mock_httpclient.HTTPSConnection.return_value = mock_conn
@@ -145,7 +145,7 @@ def test_build_bookend_from_cli_time() -> None:
 
 def test_fetch_contributions_successful_parsing() -> None:
     """Do not test the call, only parsing logic of expected results"""
-    client = daystats.HTTPClient("mock", "example.com")
+    client = daystats._HTTPClient("mock", "example.com")
     mock_resp = json.loads(CONTRIBUTION_FIXTURE)
     start = datetime.datetime(year=1998, month=12, day=31, hour=0, minute=0, second=0)
     end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
@@ -163,7 +163,7 @@ def test_fetch_contributions_successful_parsing() -> None:
 
 
 def test_fetch_contributions_error_handled() -> None:
-    client = daystats.HTTPClient("mock", "example.com")
+    client = daystats._HTTPClient("mock", "example.com")
     mock_resp = {"error": "json machine broken"}
     start = datetime.datetime(year=1998, month=12, day=31, hour=0, minute=0, second=0)
     end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
@@ -180,7 +180,7 @@ def test_fetch_contributions_error_handled() -> None:
 
 def test_fetch_pull_requets_successful_parsing() -> None:
     """Do not test the call, only parsing logic of expected results"""
-    client = daystats.HTTPClient("mock", "example.com")
+    client = daystats._HTTPClient("mock", "example.com")
     mock_resp = json.loads(REPOSITORY_FIXTURE)
     # times for repository fixture
     # 2023-08-31 19:00:00 2023-09-01 18:59:59
@@ -209,7 +209,7 @@ def test_fetch_pull_requets_successful_parsing() -> None:
 
 def test_fetch_pull_requets_error_handle() -> None:
     """Do not test the call, only parsing logic of expected results"""
-    client = daystats.HTTPClient("mock", "example.com")
+    client = daystats._HTTPClient("mock", "example.com")
     mock_resp = {"error": "json machine broken"}
     start = datetime.datetime(year=2023, month=8, day=31, hour=19, minute=0, second=0)
     end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)

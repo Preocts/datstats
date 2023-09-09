@@ -58,7 +58,7 @@ class PullRequest:
     url: str
 
 
-class HTTPClient:
+class _HTTPClient:
     def __init__(self, token: str | None, url: str = BASE_URL) -> None:
         """Define an HTTPClient with token and target GitHub GraphQL API url."""
         self._token = token or ""
@@ -116,7 +116,7 @@ query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
 
 
 def fetch_contributions(
-    client: HTTPClient,
+    client: _HTTPClient,
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
@@ -202,7 +202,7 @@ query($repoowner: String!, $reponame: String!, $cursor: String) {
 
 
 def fetch_pull_requests(
-    client: HTTPClient,
+    client: _HTTPClient,
     author: str,
     repoowner: str,
     reponame: str,
@@ -317,7 +317,7 @@ def get_stats(
         month: Uses today as the default date.
         day: Uses today as the default date.
     """
-    client = HTTPClient(token, url if url else BASE_URL)
+    client = _HTTPClient(token, url if url else BASE_URL)
     start_dt, end_dt = _build_bookend_times(year, month, day)
     logger.debug("Start time: %s", start_dt)
     logger.debug("End time: %s", end_dt)
