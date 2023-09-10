@@ -115,7 +115,7 @@ query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
     return {"query": query, "variables": variables}
 
 
-def fetch_contributions(
+def _fetch_contributions(
     client: _HTTPClient,
     loginname: str,
     start_dt: datetime.datetime,
@@ -201,7 +201,7 @@ query($repoowner: String!, $reponame: String!, $cursor: String) {
     return {"query": query, "variables": variables}
 
 
-def fetch_pull_requests(
+def _fetch_pull_requests(
     client: _HTTPClient,
     author: str,
     repoowner: str,
@@ -323,11 +323,11 @@ def get_stats(
     logger.debug("End time: %s", end_dt)
     logger.debug("UTC Offset: %s", UTC_OFFSET)
 
-    contribs = fetch_contributions(client, loginname, start_dt, end_dt)
+    contribs = _fetch_contributions(client, loginname, start_dt, end_dt)
     pull_requests = []
     for repo in contribs.pr_repos:
         pull_requests.extend(
-            fetch_pull_requests(
+            _fetch_pull_requests(
                 client=client,
                 author=loginname,
                 repoowner=repo.owner,
@@ -340,7 +340,7 @@ def get_stats(
     return contribs, pull_requests
 
 
-def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
+def _parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog="daystats",
@@ -410,7 +410,7 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
 
 def cli_runner(cli_args: list[str] | None = None) -> int:
     """Run the program."""
-    args = parse_args(cli_args)
+    args = _parse_args(cli_args)
 
     contribs, pull_requests = get_stats(
         loginname=args.loginname,

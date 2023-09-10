@@ -83,7 +83,7 @@ def test_parse_args_defaults() -> None:
     expected = daystats.CLIArgs(loginname="mock", token="mock_token")
 
     with patch.dict(os.environ, env):
-        result = daystats.parse_args(args)
+        result = daystats._parse_args(args)
 
     assert result == expected
 
@@ -112,7 +112,7 @@ def test_parse_args_flags() -> None:
     )
 
     with patch.dict(os.environ, env):
-        result = daystats.parse_args(args)
+        result = daystats._parse_args(args)
 
     assert result == expected
 
@@ -151,7 +151,7 @@ def test_fetch_contributions_successful_parsing() -> None:
     end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
 
     with patch.object(client, "post", return_value=mock_resp):
-        result = daystats.fetch_contributions(client, "mockname", start, end)
+        result = daystats._fetch_contributions(client, "mockname", start, end)
 
     assert result.commits == 5
     assert result.issues == 1
@@ -169,7 +169,7 @@ def test_fetch_contributions_error_handled() -> None:
     end = datetime.datetime(year=1998, month=12, day=31, hour=23, minute=59, second=59)
 
     with patch.object(client, "post", return_value=mock_resp):
-        result = daystats.fetch_contributions(client, "mockname", start, end)
+        result = daystats._fetch_contributions(client, "mockname", start, end)
 
     assert result.commits == 0
     assert result.issues == 0
@@ -188,7 +188,7 @@ def test_fetch_pull_requets_successful_parsing() -> None:
     end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)
 
     with patch.object(client, "post", side_effect=mock_resp):
-        result = daystats.fetch_pull_requests(
+        result = daystats._fetch_pull_requests(
             client=client,
             author="preocts",
             repoowner="preocts",
@@ -215,7 +215,7 @@ def test_fetch_pull_requets_error_handle() -> None:
     end = datetime.datetime(year=2023, month=9, day=1, hour=18, minute=59, second=59)
 
     with patch.object(client, "post", return_value=mock_resp):
-        result = daystats.fetch_pull_requests(
+        result = daystats._fetch_pull_requests(
             client=client,
             author="preocts",
             repoowner="preocts",
