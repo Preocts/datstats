@@ -58,7 +58,7 @@ class PullRequest:
     url: str
 
 
-class HTTPClient:
+class _HTTPClient:
     def __init__(self, token: str | None, url: str = BASE_URL) -> None:
         """Define an HTTPClient with token and target GitHub GraphQL API url."""
         self._token = token or ""
@@ -115,8 +115,8 @@ query($loginname: String!, $from_time:DateTime, $to_time:DateTime) {
     return {"query": query, "variables": variables}
 
 
-def fetch_contributions(
-    client: HTTPClient,
+def _fetch_contributions(
+    client: _HTTPClient,
     loginname: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
@@ -201,8 +201,8 @@ query($repoowner: String!, $reponame: String!, $cursor: String) {
     return {"query": query, "variables": variables}
 
 
-def fetch_pull_requests(
-    client: HTTPClient,
+def _fetch_pull_requests(
+    client: _HTTPClient,
     author: str,
     repoowner: str,
     reponame: str,
@@ -283,14 +283,14 @@ def _build_bookend_times(
     """
     now = datetime.datetime.now()
 
-    if day:
-        now = now.replace(day=day)
+    if year:
+        now = now.replace(year=year)
 
     if month:
         now = now.replace(month=month)
 
-    if year:
-        now = now.replace(year=year)
+    if day:
+        now = now.replace(day=day)
 
     start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_dt = now.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -299,8 +299,10 @@ def _build_bookend_times(
 
 
 def get_stats(
-    client: HTTPClient,
     loginname: str,
+    *,
+    token: str | None = None,
+    url: str | None = None,
     year: int | None = None,
     month: int | None = None,
     day: int | None = None,
@@ -308,18 +310,24 @@ def get_stats(
     """
     Pull contribution and related pull request details from GitHub.
 
-    Uses today as the default date pulled.
+    Keyword Args:
+        token: GitHub personal access token. Default looks for TOKEN_KEY in environ
+        url: GitHub graphQL api url. Default uses BASE_URL
+        year: Uses today as the default date.
+        month: Uses today as the default date.
+        day: Uses today as the default date.
     """
+    client = _HTTPClient(token, url if url else BASE_URL)
     start_dt, end_dt = _build_bookend_times(year, month, day)
     logger.debug("Start time: %s", start_dt)
     logger.debug("End time: %s", end_dt)
     logger.debug("UTC Offset: %s", UTC_OFFSET)
 
-    contribs = fetch_contributions(client, loginname, start_dt, end_dt)
+    contribs = _fetch_contributions(client, loginname, start_dt, end_dt)
     pull_requests = []
     for repo in contribs.pr_repos:
         pull_requests.extend(
-            fetch_pull_requests(
+            _fetch_pull_requests(
                 client=client,
                 author=loginname,
                 repoowner=repo.owner,
@@ -332,7 +340,7 @@ def get_stats(
     return contribs, pull_requests
 
 
-def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
+def _parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog="daystats",
@@ -400,13 +408,14 @@ def parse_args(cli_args: list[str] | None = None) -> CLIArgs:
     )
 
 
-def runner(cli_args: list[str] | None = None) -> int:
+def cli_runner(cli_args: list[str] | None = None) -> int:
     """Run the program."""
-    args = parse_args(cli_args)
-    client = HTTPClient(args.token, args.url)
+    args = _parse_args(cli_args)
+
     contribs, pull_requests = get_stats(
-        client=client,
         loginname=args.loginname,
+        token=args.token,
+        url=args.url,
         year=args.year,
         month=args.month,
         day=args.day,
@@ -487,4 +496,4 @@ def _stats_to_text(contribs: Contributions, pull_requests: list[PullRequest]) ->
 
 
 if __name__ == "__main__":
-    raise SystemExit(runner())
+    raise SystemExit(cli_runner())
