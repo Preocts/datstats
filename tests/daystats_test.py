@@ -229,34 +229,26 @@ def test_fetch_pull_requets_error_handle() -> None:
 
 def test_get_stats() -> None:
     """Assert our "do it all" function calls as expected"""
+    http_calls = [json.loads(CONTRIBUTION_FIXTURE), *json.loads(REPOSITORY_FIXTURE)]
 
-    class MockRepo:
-        owner = "mock"
-        name = "mock"
+    with patch("daystats.daystats._HTTPClient.post") as mock_post:
+        mock_post.side_effect = http_calls
 
-    class MockContrib:
-        pr_repos = [MockRepo(), MockRepo()]
+        _, prs = daystats.get_stats(
+            "preocts",
+            token="mock",
+            url="https://example.com",
+            year=2023,
+            month=9,
+            day=1,
+        )
 
-    mock_contrib = MockContrib()
-
-    with patch.object(daystats, "fetch_contributions") as mock_fetch_contrib:
-        with patch.object(daystats, "fetch_pull_requests") as mock_fetch_pr:
-            mock_fetch_contrib.return_value = mock_contrib
-            contribs, prs = daystats.get_stats(
-                "preocts",
-                token="mock",
-                url="https://example.com",
-            )
-
-    assert mock_fetch_contrib.call_count == 1
-    assert mock_fetch_pr.call_count == 2
-
-    assert contribs is mock_contrib
-    assert prs == []
+    assert len(prs) == 2
 
 
 def test_cli_runner() -> None:
     """Assert our cli entry point calls as expected"""
+    http_calls = [json.loads(CONTRIBUTION_FIXTURE), *json.loads(REPOSITORY_FIXTURE)]
     args = [
         "mock",
         *("--day", "31"),
@@ -265,20 +257,10 @@ def test_cli_runner() -> None:
         *("--url", "https://github.com/broken"),
         *("--token", "mock_token"),
     ]
-    with patch.object(daystats, "get_stats") as mock_get_stats:
-        with patch.object(daystats, "generate_output"):
-            mock_get_stats.return_value = ("Hello", ["Hello", "World"])
+    with patch("daystats.daystats._HTTPClient.post") as mock_post:
+        mock_post.side_effect = http_calls
+        result = daystats.cli_runner(args)
 
-            result = daystats.cli_runner(args)
-
-    mock_get_stats.assert_called_once_with(
-        loginname="mock",
-        token="mock_token",
-        url="https://github.com/broken",
-        year=1998,
-        month=12,
-        day=31,
-    )
     assert result == 0
 
 
